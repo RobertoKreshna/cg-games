@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CG Games
 
-## Getting Started
+Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dimainkan in-person — semua peserta pakai HP masing-masing.
 
-First, run the development server:
+## Games
+
+- **Bible Quiz** — Kahoot-style multiple choice dengan timer 15 detik
+- **Verse Scramble** — Susun kata-kata ayat Alkitab yang diacak
+- **Emoji Story** — Tebak kisah/lagu rohani dari deretan emoji
+
+## Fitur
+
+- Room system dengan 6-digit code
+- Host mengontrol jalannya game (next question, end game)
+- Mode Individual atau Tim (tim diacak otomatis)
+- Leaderboard real-time
+- Hingga 30 player per room
+- Tidak perlu registrasi — join pakai nama saja
+
+## Stack
+
+- **Frontend**: Next.js 16, TypeScript, Tailwind CSS
+- **Backend**: Supabase Edge Functions + Drizzle ORM
+- **Database**: Supabase PostgreSQL
+- **Realtime**: Supabase Realtime (Broadcast)
+- **Deploy**: Vercel
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Environment variables
+
+Buat file `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+SUPABASE_DB_URL=postgresql://postgres.xxx:password@...pooler.supabase.com:6543/postgres
+```
+
+### 3. Setup database
+
+Jalankan migration di Supabase SQL Editor:
+
+```
+supabase/migrations/20260522000000_initial.sql
+```
+
+Lalu seed questions:
+
+```
+supabase/seed.sql
+```
+
+### 4. Deploy Edge Functions
+
+```bash
+supabase functions deploy rooms --no-verify-jwt
+supabase functions deploy sessions --no-verify-jwt
+```
+
+### 5. Run dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Cara Main
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Host** buka app → "Buat Room" → pilih game & mode → share kode
+2. **Player** buka app → "Gabung Room" → masukkan kode + nama
+3. Host klik "Mulai Game" → soal muncul di semua HP
+4. Setelah semua soal → lihat leaderboard
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tests
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run test:run
+```
