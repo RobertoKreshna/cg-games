@@ -26,23 +26,27 @@ export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
 
   const pct = remainingMs / durationMs
   const seconds = Math.ceil(remainingMs / 1000)
-  const circumference = 2 * Math.PI * 28
-  const color = pct > 0.4 ? '#22c55e' : pct > 0.2 ? '#eab308' : '#ef4444'
+  const circumference = 2 * Math.PI * 26
+  const color = pct > 0.45 ? '#f5b800' : pct > 0.2 ? '#fb923c' : '#ef4444'
 
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <div className="relative w-16 h-16">
-        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r="28" fill="none" stroke="#ffffff30" strokeWidth="6" />
+      <div className="relative w-14 h-14">
+        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
           <circle
-            cx="32" cy="32" r="28" fill="none"
-            stroke={color} strokeWidth="6"
+            cx="30" cy="30" r="26" fill="none"
+            stroke={color} strokeWidth="4"
             strokeDasharray={circumference}
             strokeDashoffset={circumference * (1 - pct)}
+            strokeLinecap="round"
             className="transition-all duration-100"
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-bold text-xl text-white">
+        <span
+          className="absolute inset-0 flex items-center justify-center font-black text-lg text-white"
+          style={{ fontFamily: 'var(--font-syne)' }}
+        >
           {seconds}
         </span>
       </div>

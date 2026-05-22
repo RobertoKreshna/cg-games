@@ -22,18 +22,33 @@ export default function ResultsPage() {
   }, [sessionId])
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-blue-600 to-purple-700 p-4 flex flex-col">
-      <h1 className="text-2xl font-bold text-white mb-6">🏆 Leaderboard</h1>
-      {loading ? (
-        <p className="text-white/70 text-center">Loading...</p>
-      ) : (
-        <Leaderboard entries={entries} mode={mode} />
-      )}
+    <main className="app-bg grid-bg min-h-screen flex flex-col p-4 relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-64 rounded-full bg-amber-500/12 blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 flex-1 flex flex-col pt-6">
+        <div className="mb-6">
+          <p className="label-tag mb-1">Hasil Akhir</p>
+          <h1 className="heading text-3xl text-white">🏆 Leaderboard</h1>
+        </div>
+
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-white/35 text-sm animate-pulse">Memuat...</p>
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-white/35 text-sm">Belum ada data.</p>
+          </div>
+        ) : (
+          <Leaderboard entries={entries} mode={mode} />
+        )}
+      </div>
+
       <button
         onClick={() => router.push('/')}
-        className="mt-8 bg-white/20 text-white font-semibold py-3 rounded-xl border border-white/30 active:scale-95"
+        className="btn-glass py-4 w-full mt-6 relative z-10"
       >
-        Kembali ke Home
+        ← Kembali ke Home
       </button>
     </main>
   )

@@ -55,28 +55,32 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1">
+    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-6">
       <div className="flex justify-between items-center">
         <div>
-          <p className="text-white/60 text-sm">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <p className="text-white font-semibold">{content.reference}</p>
+          <p className="label-tag">Soal {questionIndex + 1} / {totalQuestions}</p>
+          <p className="text-gold font-bold text-base mt-0.5">{content.reference}</p>
         </div>
         <Timer durationMs={30000} onExpire={handleExpire} />
       </div>
 
-      <div className="min-h-20 bg-white/10 rounded-2xl p-3 flex flex-wrap gap-2 border-2 border-white/20">
-        {placed.length === 0 && (
-          <p className="text-white/40 text-sm self-center mx-auto">Ketuk kata di bawah untuk menyusun ayat</p>
+      <div
+        className="min-h-24 p-4 flex flex-wrap gap-2 rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+      >
+        {placed.length === 0 ? (
+          <p className="text-white/20 text-sm self-center mx-auto italic">Ketuk kata untuk menyusun ayat...</p>
+        ) : (
+          placed.map((wordIndex, pos) => (
+            <button
+              key={pos}
+              onClick={() => remove(pos)}
+              className="bg-amber-500/80 text-black px-3 py-1.5 rounded-lg font-bold text-sm active:scale-95 transition-transform shadow-sm"
+            >
+              {content.words[wordIndex]}
+            </button>
+          ))
         )}
-        {placed.map((wordIndex, pos) => (
-          <button
-            key={pos}
-            onClick={() => remove(pos)}
-            className="bg-white text-gray-800 px-3 py-1 rounded-lg font-medium shadow text-sm active:scale-95"
-          >
-            {content.words[wordIndex]}
-          </button>
-        ))}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -85,24 +89,20 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
             key={wordIndex}
             onClick={() => tap(wordIndex)}
             disabled={answered}
-            className="bg-blue-500 text-white px-3 py-2 rounded-xl font-medium active:scale-95 transition-transform disabled:opacity-40"
+            className="px-3 py-2 rounded-xl font-semibold text-sm text-white active:scale-95 transition-all disabled:opacity-30"
+            style={{ background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.15)' }}
           >
             {content.words[wordIndex]}
           </button>
         ))}
       </div>
 
-      {!answered && (
-        <button
-          onClick={handleSubmit}
-          disabled={placed.length === 0}
-          className="bg-green-500 text-white font-bold py-3 rounded-xl disabled:opacity-50 active:scale-95"
-        >
-          Submit
+      {!answered ? (
+        <button onClick={handleSubmit} disabled={placed.length === 0} className="btn-primary py-3 text-base w-full">
+          Submit ✓
         </button>
-      )}
-      {answered && (
-        <p className="text-center text-white/70 text-sm animate-pulse">Menunggu soal berikutnya...</p>
+      ) : (
+        <p className="text-center text-white/30 text-xs animate-pulse">Menunggu soal berikutnya...</p>
       )}
     </div>
   )

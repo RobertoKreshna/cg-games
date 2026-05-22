@@ -41,17 +41,24 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 max-w-lg mx-auto w-full flex-1 items-center">
+    <div className="flex flex-col gap-5 p-4 max-w-lg mx-auto w-full flex-1 items-center pt-6">
       <div className="flex justify-between w-full items-center">
-        <p className="text-white/60 text-sm">Soal {questionIndex + 1} / {totalQuestions} — Tebak kisahnya!</p>
+        <div>
+          <p className="label-tag">Soal {questionIndex + 1} / {totalQuestions}</p>
+          <p className="text-white/50 text-sm mt-0.5">Tebak kisahnya!</p>
+        </div>
         <Timer durationMs={20000} onExpire={handleExpire} />
       </div>
 
-      <p className="text-7xl tracking-widest text-center py-4">{content.emojis}</p>
-      <p className="text-white/50 text-xs">Hint: {content.hint}</p>
+      <div
+        className="glass-card w-full py-8 flex flex-col items-center gap-3"
+      >
+        <p className="text-6xl tracking-widest leading-relaxed text-center">{content.emojis}</p>
+        <p className="text-white/25 text-xs">Hint: {content.hint}</p>
+      </div>
 
       <input
-        className="w-full bg-white/20 border-2 border-white/30 text-white placeholder:text-white/40 rounded-xl p-3 text-center text-lg focus:outline-none focus:border-white"
+        className="dark-input p-4 text-center text-base font-semibold w-full"
         placeholder="Jawaban kamu..."
         value={answer}
         onChange={(e) => setAnswer(e.target.value)}
@@ -60,17 +67,12 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
         autoFocus
       />
 
-      {!answered && (
-        <button
-          onClick={handleSubmit}
-          disabled={!answer.trim()}
-          className="bg-white text-blue-700 font-bold py-3 px-10 rounded-xl disabled:opacity-50 active:scale-95 transition-transform"
-        >
-          Submit
+      {!answered ? (
+        <button onClick={handleSubmit} disabled={!answer.trim()} className="btn-primary py-3 px-12 text-base">
+          Submit ✓
         </button>
-      )}
-      {answered && (
-        <p className="text-center text-white/70 text-sm animate-pulse">Menunggu reveal...</p>
+      ) : (
+        <p className="text-center text-white/30 text-xs animate-pulse">Menunggu reveal...</p>
       )}
     </div>
   )

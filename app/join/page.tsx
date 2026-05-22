@@ -32,32 +32,58 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-blue-600 to-purple-700 p-4">
-      <h1 className="text-3xl font-bold text-white mb-8">Gabung Room</h1>
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl flex flex-col gap-4">
-        <input
-          className="border-2 border-gray-200 rounded-xl p-3 text-center text-2xl font-bold uppercase tracking-widest focus:border-blue-500 outline-none"
-          placeholder="KODE"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          maxLength={6}
-        />
-        <input
-          className="border-2 border-gray-200 rounded-xl p-3 text-center text-lg focus:border-blue-500 outline-none"
-          placeholder="Nama kamu"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={30}
-          onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-        />
-        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+    <main className="app-bg grid-bg min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-64 rounded-full bg-violet-700/18 blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-sm">
         <button
-          onClick={handleJoin}
-          disabled={loading || !code.trim() || !name.trim()}
-          className="bg-blue-600 text-white font-bold py-3 rounded-xl text-lg disabled:opacity-50 active:scale-95 transition-transform"
+          onClick={() => router.back()}
+          className="text-white/35 text-sm mb-7 flex items-center gap-1.5 hover:text-white/60 transition-colors"
         >
-          {loading ? 'Joining...' : 'Masuk'}
+          ← Kembali
         </button>
+
+        <h1 className="heading text-4xl text-white mb-1">Gabung Room</h1>
+        <p className="text-white/35 text-sm mb-8">Masukkan kode dari host</p>
+
+        <div className="glass-card p-6 flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <label className="label-tag">Kode Room</label>
+            <input
+              className="dark-input p-4 text-center text-3xl font-black tracking-[0.28em] uppercase w-full"
+              placeholder="· · · · · ·"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              maxLength={6}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="label-tag">Nama Kamu</label>
+            <input
+              className="dark-input p-4 text-center text-lg font-semibold w-full"
+              placeholder="Nama..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={30}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-500/15 border border-red-500/30 rounded-xl p-3 text-red-300 text-sm text-center">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleJoin}
+            disabled={loading || !code.trim() || !name.trim()}
+            className="btn-primary py-4 text-lg w-full mt-1"
+          >
+            {loading ? 'Joining...' : 'Masuk →'}
+          </button>
+        </div>
       </div>
     </main>
   )
