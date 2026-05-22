@@ -44,21 +44,19 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
     <div className="flex flex-col gap-5 p-4 max-w-lg mx-auto w-full flex-1 items-center pt-6">
       <div className="flex justify-between w-full items-center">
         <div>
-          <p className="label-tag">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <p className="text-white/50 text-sm mt-0.5">Tebak kisahnya!</p>
+          <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
+          <p className="text-[#999] text-sm mt-0.5">Tebak kisahnya!</p>
         </div>
         <Timer durationMs={20000} onExpire={handleExpire} />
       </div>
 
-      <div
-        className="glass-card w-full py-8 flex flex-col items-center gap-3"
-      >
+      <div className="bg-white border border-[#E8E8E8] rounded-2xl w-full py-8 flex flex-col items-center gap-3">
         <p className="text-6xl tracking-widest leading-relaxed text-center">{content.emojis}</p>
-        <p className="text-white/25 text-xs">Hint: {content.hint}</p>
+        <p className="text-[#CCC] text-xs">Hint: {content.hint}</p>
       </div>
 
       <input
-        className="dark-input p-4 text-center text-base font-semibold w-full"
+        className="field-input p-4 text-center text-base font-medium w-full"
         placeholder="Jawaban kamu..."
         value={answer}
         onChange={(e) => setAnswer(e.target.value)}
@@ -69,10 +67,10 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
 
       {!answered ? (
         <button onClick={handleSubmit} disabled={!answer.trim()} className="btn-primary py-3 px-12 text-base">
-          Submit ✓
+          Submit
         </button>
       ) : (
-        <p className="text-center text-white/30 text-xs animate-pulse">Menunggu reveal...</p>
+        <p className="text-center text-[#CCC] text-xs animate-pulse">Menunggu reveal...</p>
       )}
     </div>
   )

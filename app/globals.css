@@ -1,129 +1,60 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-nunito);
-  --color-gold: #f5b800;
-  --color-gold-light: #ffd44d;
+  --font-sans: var(--font-dm-sans);
 }
 
 body {
-  background: #090613;
-  color: #ffffff;
-  font-family: var(--font-nunito), 'Nunito', sans-serif;
+  background: #F5F5F5;
+  color: #111111;
+  font-family: var(--font-dm-sans), 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-.app-bg {
-  background:
-    radial-gradient(ellipse 110% 55% at 50% -5%, rgba(109, 40, 217, 0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 35% at 95% 95%, rgba(245, 184, 0, 0.09) 0%, transparent 55%),
-    linear-gradient(160deg, #090613 0%, #12082a 100%);
-}
-
-.grid-bg {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 24px;
-}
-
-.glass-card-sm {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+@utility card {
+  background: #FFFFFF;
+  border: 1px solid #E8E8E8;
   border-radius: 16px;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #f5b800 0%, #f97316 100%);
-  color: #0a0713;
-  font-weight: 800;
-  font-family: var(--font-syne), 'Syne', sans-serif;
-  letter-spacing: 0.01em;
-  border-radius: 18px;
-  box-shadow: 0 0 28px rgba(245, 184, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.5);
-  transition: box-shadow 0.18s ease, transform 0.14s ease;
+@utility btn-primary {
+  background: #111111;
+  color: #FFFFFF;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: opacity 0.15s ease, transform 0.12s ease;
+  &:hover { opacity: 0.85; }
+  &:active { transform: scale(0.98); }
+  &:disabled { opacity: 0.3; }
 }
 
-.btn-primary:active {
-  transform: scale(0.96);
-  box-shadow: 0 0 12px rgba(245, 184, 0, 0.2);
+@utility btn-secondary {
+  background: #FFFFFF;
+  color: #111111;
+  font-weight: 600;
+  border: 1px solid #D8D8D8;
+  border-radius: 12px;
+  transition: background 0.15s ease, transform 0.12s ease;
+  &:hover { background: #F5F5F5; }
+  &:active { transform: scale(0.98); }
+  &:disabled { opacity: 0.3; }
 }
 
-.btn-primary:disabled {
-  opacity: 0.4;
-  box-shadow: none;
-}
-
-.btn-glass {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.88);
-  font-weight: 700;
-  font-family: var(--font-syne), 'Syne', sans-serif;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 18px;
-  transition: background 0.15s ease, transform 0.14s ease;
-}
-
-.btn-glass:active {
-  transform: scale(0.96);
-  background: rgba(255, 255, 255, 0.13);
-}
-
-.btn-glass:disabled {
-  opacity: 0.35;
-}
-
-.btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  font-weight: 700;
-  font-family: var(--font-syne), 'Syne', sans-serif;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 18px;
-  transition: background 0.15s ease, transform 0.14s ease;
-}
-
-.btn-danger:active {
-  transform: scale(0.96);
-}
-
-.dark-input {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 14px;
-  color: white;
+@utility field-input {
+  background: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  border-radius: 10px;
+  color: #111111;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  &:focus { border-color: #111111; box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.07); }
+  &::placeholder { color: #C0C0C0; }
 }
 
-.dark-input:focus {
-  border-color: rgba(245, 184, 0, 0.55);
-  box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.12);
-}
-
-.dark-input::placeholder {
-  color: rgba(255, 255, 255, 0.28);
-}
-
-.heading {
-  font-family: var(--font-syne), 'Syne', sans-serif;
-  font-weight: 800;
-}
-
-.label-tag {
+@utility tag {
   font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: #AAAAAA;
 }

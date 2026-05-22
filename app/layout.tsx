@@ -1,17 +1,13 @@
 import type { Metadata } from 'next'
-import { Syne, Nunito } from 'next/font/google'
+import { DM_Sans } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
-const syne = Syne({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  variable: '--font-syne',
-  weight: ['400', '600', '700', '800'],
-})
-
-const nunito = Nunito({
-  subsets: ['latin'],
-  variable: '--font-nunito',
-  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-dm-sans',
+  weight: ['400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -21,8 +17,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={`${syne.variable} ${nunito.variable}`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="id" className={dmSans.variable}>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   )
 }

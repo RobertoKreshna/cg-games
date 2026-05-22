@@ -52,11 +52,10 @@ export default function PlayPage() {
 
   if (!session) {
     return (
-      <main className="app-bg grid-bg min-h-screen flex items-center justify-center p-6">
-        <div className="glass-card p-8 flex flex-col items-center gap-4 text-center">
-          <div className="text-4xl">🔒</div>
-          <p className="text-white/70">Session tidak ditemukan.</p>
-          <a href="/join" className="text-gold text-sm font-semibold underline underline-offset-4">
+      <main className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-6">
+        <div className="card p-8 flex flex-col items-center gap-4 text-center max-w-xs w-full">
+          <p className="text-[#999] text-sm">Session tidak ditemukan.</p>
+          <a href="/join" className="text-[#111] text-sm font-semibold underline underline-offset-4">
             Join ulang
           </a>
         </div>
@@ -65,27 +64,25 @@ export default function PlayPage() {
   }
 
   return (
-    <main className="app-bg grid-bg min-h-screen flex flex-col relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-56 rounded-full bg-violet-700/15 blur-3xl pointer-events-none" />
-
+    <main className="min-h-screen bg-[#F5F5F5] flex flex-col">
       {phase === 'lobby' && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6 relative z-10">
-          <div className="glass-card w-36 h-36 flex flex-col items-center justify-center gap-1">
-            <div className="text-5xl animate-pulse">⏳</div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6">
+          <div className="card w-32 h-32 flex items-center justify-center text-4xl animate-pulse">
+            ⏳
           </div>
           <div className="text-center">
-            <p className="heading text-xl text-white mb-1">Menunggu host...</p>
-            <p className="text-white/35 text-sm">Siap-siap ya!</p>
+            <p className="text-[#111] font-semibold">Menunggu host...</p>
+            <p className="text-[#999] text-sm mt-1">Siap-siap ya!</p>
           </div>
-          <div className="glass-card-sm px-5 py-2.5 flex items-center gap-2">
-            <span className="text-white/35 text-xs uppercase tracking-wider">Room</span>
-            <span className="heading text-gold text-xl tracking-widest">{roomCode}</span>
+          <div className="card px-5 py-2.5 flex items-center gap-2">
+            <span className="tag">Room</span>
+            <span className="text-[#111] font-bold tracking-widest text-lg">{roomCode}</span>
           </div>
         </div>
       )}
 
       {phase === 'question' && question && sessionIdRef.current && (
-        <div className="flex-1 flex flex-col relative z-10">
+        <div className="flex-1 flex flex-col">
           {question.gameType === 'bible_quiz' && (
             <BibleQuiz
               questionId={question.questionId}
@@ -123,24 +120,23 @@ export default function PlayPage() {
       )}
 
       {(phase === 'answered' || phase === 'reveal') && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6 relative z-10">
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6">
           {lastPoints !== null ? (
             <>
-              <div className="text-7xl">
+              <div className="text-6xl">
                 {lastPoints >= 800 ? '🎉' : lastPoints >= 500 ? '🔥' : lastPoints > 0 ? '👍' : '😅'}
               </div>
-              <div className="glass-card px-10 py-6 flex flex-col items-center gap-1">
-                <span className="heading text-5xl font-black text-gold">+{lastPoints}</span>
-                <span className="text-white/35 text-sm uppercase tracking-wider">poin</span>
+              <div className="card px-10 py-6 flex flex-col items-center gap-1 text-center">
+                <span className="text-4xl font-bold text-[#111]">+{lastPoints}</span>
+                <span className="text-[#999] text-xs uppercase tracking-wider">poin</span>
               </div>
             </>
           ) : (
-            <div className="glass-card p-8 flex flex-col items-center gap-2">
-              <div className="text-3xl animate-pulse">⏳</div>
-              <p className="text-white/70 font-semibold">Menunggu soal berikutnya...</p>
+            <div className="card p-8 flex flex-col items-center gap-2 text-center">
+              <p className="text-[#999] text-sm">Menunggu soal berikutnya...</p>
             </div>
           )}
-          <p className="text-white/25 text-xs animate-pulse mt-2">Menunggu host...</p>
+          <p className="text-[#CCC] text-xs animate-pulse">Menunggu host...</p>
         </div>
       )}
     </main>
