@@ -5,6 +5,7 @@ export interface BibleQuizContent {
   question: string
   options: string[]
   answer_index: number
+  reference?: string
 }
 
 export interface VerseScrambleContent {
@@ -15,8 +16,9 @@ export interface VerseScrambleContent {
 
 export interface EmojiStoryContent {
   emojis: string
-  answer: string
   hint: string
+  words: string[]
+  correct: number[]
 }
 
 export type QuestionContent = BibleQuizContent | VerseScrambleContent | EmojiStoryContent

@@ -78,7 +78,12 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
       </div>
 
       {answered && (
-        <p className="text-center text-[#CCC] text-xs animate-pulse">Menunggu soal berikutnya...</p>
+        <div className="flex flex-col items-center gap-1.5">
+          {content.reference && (
+            <p className="text-[#999] text-xs">📖 {content.reference}</p>
+          )}
+          <p className="text-center text-[#CCC] text-xs animate-pulse">Menunggu soal berikutnya...</p>
+        </div>
       )}
     </div>
   )

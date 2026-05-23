@@ -13,12 +13,7 @@ export function calcVerseScramblePoints(
   return Math.max(0, Math.round(accuracy * 1000 * speedMultiplier))
 }
 
-export function calcEmojiStoryPoints(submitted: string, answer: string): number {
-  const normalize = (s: string) => s.toLowerCase().trim()
-  if (normalize(submitted) === normalize(answer)) return 1000
-  const answerWords = normalize(answer).split(' ')
-  const submittedNorm = normalize(submitted)
-  const matchCount = answerWords.filter((w) => submittedNorm.includes(w)).length
-  if (matchCount >= Math.ceil(answerWords.length * 0.6)) return 500
-  return 0
+export function calcEmojiStoryPoints(selected: number[], correct: number[]): number {
+  const correctCount = selected.filter((i) => correct.includes(i)).length
+  return Math.round((correctCount / correct.length) * 1000)
 }

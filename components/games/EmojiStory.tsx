@@ -15,62 +15,88 @@ interface Props {
 }
 
 export function EmojiStory({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
-  const [answer, setAnswer] = useState('')
+  const [selected, setSelected] = useState<number[]>([])
   const [answered, setAnswered] = useState(false)
   const startRef = useRef(Date.now())
 
-  async function doSubmit(text: string, elapsed: number) {
+  function toggleWord(index: number) {
+    if (answered) return
+    setSelected((prev) => {
+      if (prev.includes(index)) return prev.filter((i) => i !== index)
+      if (prev.length >= 5) return prev
+      return [...prev, index]
+    })
+  }
+
+  async function doSubmit(indices: number[], elapsed: number) {
     const result = await submitAnswer(sessionId, sessionToken, {
       question_id: questionId,
-      submitted_answer: text,
+      submitted_answer: JSON.stringify(indices),
       time_taken_ms: elapsed,
     })
     onAnswered(result.points)
   }
 
   async function handleSubmit() {
-    if (answered || !answer.trim()) return
+    if (answered || selected.length !== 5) return
     setAnswered(true)
-    await doSubmit(answer.trim(), Date.now() - startRef.current)
+    await doSubmit(selected, Date.now() - startRef.current)
   }
 
   async function handleExpire() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(answer.trim() || '', 20000)
+    await doSubmit(selected, 20000)
   }
 
+  const remaining = 5 - selected.length
+
   return (
-    <div className="flex flex-col gap-5 p-4 max-w-lg mx-auto w-full flex-1 items-center pt-6">
+    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-6">
       <div className="flex justify-between w-full items-center">
         <div>
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <p className="text-[#999] text-sm mt-0.5">Tebak kisahnya!</p>
+          <p className="text-[#999] text-sm mt-0.5">
+            {answered ? 'Menunggu soal berikutnya...' : remaining > 0 ? `Pilih ${remaining} lagi` : 'Siap submit!'}
+          </p>
         </div>
         <Timer durationMs={20000} onExpire={handleExpire} />
       </div>
 
-      <div className="bg-white border border-[#E8E8E8] rounded-2xl w-full py-8 flex flex-col items-center gap-3">
-        <p className="text-6xl tracking-widest leading-relaxed text-center">{content.emojis}</p>
-        <p className="text-[#CCC] text-xs">Hint: {content.hint}</p>
+      <div className="bg-white border border-[#E8E8E8] rounded-2xl w-full py-5 flex flex-col items-center gap-1.5">
+        <p className="text-5xl tracking-widest leading-relaxed text-center">{content.emojis}</p>
+        <p className="text-[#CCC] text-xs">{content.hint}</p>
       </div>
 
-      <input
-        className="field-input p-4 text-center text-base font-medium w-full"
-        placeholder="Jawaban kamu..."
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        disabled={answered}
-        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-        autoFocus
-      />
+      <div className="grid grid-cols-2 gap-2">
+        {content.words.map((word, i) => {
+          const isSelected = selected.includes(i)
+          const isFull = selected.length >= 5 && !isSelected
+          return (
+            <button
+              key={i}
+              onClick={() => toggleWord(i)}
+              disabled={answered || isFull}
+              className={`py-3 px-4 rounded-xl text-sm font-medium text-left border transition-all ${
+                isSelected
+                  ? 'bg-[#111] text-white border-[#111]'
+                  : 'bg-white text-[#111] border-[#E8E8E8]'
+              } ${isFull ? 'opacity-25' : ''}`}
+            >
+              {word}
+            </button>
+          )
+        })}
+      </div>
 
-      {!answered ? (
-        <button onClick={handleSubmit} disabled={!answer.trim()} className="btn-primary py-3 px-12 text-base">
-          Submit
+      {!answered && (
+        <button
+          onClick={handleSubmit}
+          disabled={selected.length !== 5}
+          className="btn-primary py-3.5 text-base w-full"
+        >
+          Submit ({selected.length}/5)
         </button>
-      ) : (
-        <p className="text-center text-[#CCC] text-xs animate-pulse">Menunggu reveal...</p>
       )}
     </div>
   )

@@ -14,14 +14,9 @@ function calcVerseScramblePoints(correctWords: number, totalWords: number, timeM
   return Math.max(0, Math.round(accuracy * 1000 * speedMultiplier))
 }
 
-function calcEmojiStoryPoints(submitted: string, answer: string): number {
-  const normalize = (s: string) => s.toLowerCase().trim()
-  if (normalize(submitted) === normalize(answer)) return 1000
-  const answerWords = normalize(answer).split(' ')
-  const submittedNorm = normalize(submitted)
-  const matchCount = answerWords.filter((w) => submittedNorm.includes(w)).length
-  if (matchCount >= Math.ceil(answerWords.length * 0.6)) return 500
-  return 0
+function calcEmojiStoryPoints(selected: number[], correct: number[]): number {
+  const correctCount = selected.filter((i: number) => correct.includes(i)).length
+  return Math.round((correctCount / correct.length) * 1000)
 }
 
 async function broadcastToRoom(roomCode: string, event: string, payload: unknown) {
@@ -160,8 +155,10 @@ Deno.serve(async (req) => {
         isCorrect = correctWords === correctOrder.length
         points = calcVerseScramblePoints(correctWords, correctOrder.length, time_taken_ms)
       } else if (question.gameType === 'emoji_story') {
-        points = calcEmojiStoryPoints(submitted_answer, content.answer as string)
-        isCorrect = points > 0
+        const correct = content.correct as number[]
+        const selected = JSON.parse(submitted_answer) as number[]
+        points = calcEmojiStoryPoints(selected, correct)
+        isCorrect = points === 1000
       }
 
       await db.insert(answers).values({
@@ -195,7 +192,7 @@ Deno.serve(async (req) => {
         await db.update(gameSessions).set({ status: 'reveal' }).where(eq(gameSessions.id, sessionId))
         await broadcastToRoom(sessionRow.room.code, 'question_reveal', {
           question_id,
-          correct_answer: content.answer_index ?? content.answer,
+          correct_answer: content.answer_index ?? content.correct,
         })
       }
 
