@@ -13,6 +13,7 @@ export const rooms = pgTable('rooms', {
   code: varchar('code', { length: 6 }).notNull().unique(),
   gameType: gameTypeEnum('game_type').notNull(),
   mode: roomModeEnum('mode').notNull().default('individual'),
+  questionCount: integer('question_count').notNull().default(10),
   status: roomStatusEnum('status').notNull().default('lobby'),
   hostToken: varchar('host_token', { length: 64 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -45,6 +46,7 @@ export const gameSessions = pgTable('game_sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
   roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'cascade' }),
   currentQuestionIndex: integer('current_question_index').notNull().default(0),
+  questionIds: jsonb('question_ids'),
   status: sessionStatusEnum('status').notNull().default('waiting'),
   startedAt: timestamp('started_at', { withTimezone: true }),
 })

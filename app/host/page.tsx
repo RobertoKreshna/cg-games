@@ -21,6 +21,7 @@ export default function HostPage() {
   const [phase, setPhase] = useState<HostPhase>('configure')
   const [gameType, setGameType] = useState<GameType>('bible_quiz')
   const [mode, setMode] = useState<RoomMode>('individual')
+  const [questionCount, setQuestionCount] = useState(10)
   const [roomCode, setRoomCode] = useState('')
   const [hostToken, setHostToken] = useState('')
   const [sessionId, setSessionId] = useState('')
@@ -62,7 +63,7 @@ export default function HostPage() {
     setLoading(true)
     setError('')
     try {
-      const data = await createRoom(gameType, mode)
+      const data = await createRoom(gameType, mode, questionCount)
       setRoomCode(data.code)
       setHostToken(data.host_token)
       saveHostSession(data.code, { hostToken: data.host_token, roomId: data.room_id })
@@ -157,6 +158,23 @@ export default function HostPage() {
                   }`}
                 >
                   {m === 'individual' ? '👤 Individual' : '👥 Tim'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="tag mb-3">Jumlah Soal</p>
+            <div className="card p-1 flex gap-1">
+              {[5, 10, 15, 20].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setQuestionCount(n)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    questionCount === n ? 'bg-[#111] text-white' : 'text-[#888]'
+                  }`}
+                >
+                  {n}
                 </button>
               ))}
             </div>

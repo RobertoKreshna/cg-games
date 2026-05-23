@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   try {
     // POST /rooms → create room
     if (req.method === 'POST' && segments.length === 0) {
-      const { game_type, mode = 'individual' } = await req.json()
+      const { game_type, mode = 'individual', question_count = 10 } = await req.json()
       if (!game_type) return json({ error: 'game_type required' }, 400)
 
       let code = ''
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       if (!code) return json({ error: 'could not generate unique code' }, 500)
 
       const hostToken = generateToken()
-      const [room] = await db.insert(rooms).values({ code, gameType: game_type, mode, hostToken }).returning()
+      const [room] = await db.insert(rooms).values({ code, gameType: game_type, mode, questionCount: question_count, hostToken }).returning()
       return json({ room_id: room.id, code: room.code, host_token: hostToken })
     }
 

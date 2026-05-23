@@ -97,23 +97,29 @@ Deno.serve(async (req) => {
         .where(and(eq(gameSessions.id, sessionId), eq(rooms.hostToken, hostToken ?? '')))
       if (!row) return json({ error: 'unauthorized' }, 403)
 
-      const allQuestions = await db
-        .select()
-        .from(questions)
-        .where(eq(questions.gameType, row.room.gameType))
-        .orderBy(questions.orderIndex)
+      // Initialize question list on first call by shuffling and slicing to questionCount
+      let questionIds: string[] = (row.session.questionIds as string[] | null) ?? []
+      if (questionIds.length === 0) {
+        const pool = await db
+          .select({ id: questions.id })
+          .from(questions)
+          .where(eq(questions.gameType, row.room.gameType))
+          .orderBy(questions.orderIndex)
+        const shuffled = [...pool].sort(() => Math.random() - 0.5)
+        questionIds = shuffled.slice(0, row.room.questionCount).map((q) => q.id)
+        await db.update(gameSessions).set({ questionIds }).where(eq(gameSessions.id, sessionId))
+      }
 
-      // First call: status is 'waiting' → show question 0. Subsequent: increment.
       const nextIndex = row.session.status === 'waiting' ? 0 : row.session.currentQuestionIndex + 1
 
-      if (nextIndex >= allQuestions.length) {
+      if (nextIndex >= questionIds.length) {
         await db.update(gameSessions).set({ status: 'finished' }).where(eq(gameSessions.id, sessionId))
         await db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, row.room.id))
         await broadcastToRoom(row.room.code, 'game_finished', { session_id: sessionId })
         return json({ status: 'finished', session_id: sessionId })
       }
 
-      const q = allQuestions[nextIndex]
+      const [q] = await db.select().from(questions).where(eq(questions.id, questionIds[nextIndex]))
       await db.update(gameSessions)
         .set({ currentQuestionIndex: nextIndex, status: 'question' })
         .where(eq(gameSessions.id, sessionId))
@@ -123,7 +129,7 @@ Deno.serve(async (req) => {
         question_id: q.id,
         game_type: q.gameType,
         content: q.content,
-        total_questions: allQuestions.length,
+        total_questions: questionIds.length,
       })
 
       return json({ status: 'question', question_index: nextIndex, question_id: q.id })
