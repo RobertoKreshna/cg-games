@@ -61,6 +61,12 @@ export function submitAnswer(
   })
 }
 
+export function getHostState(code: string, hostToken: string) {
+  return call(`/rooms/${code}/host-state`, {
+    headers: { 'x-host-token': hostToken },
+  })
+}
+
 export function getRoomState(code: string, sessionToken: string) {
   return call(`/rooms/${code}/state`, {
     headers: { 'x-session-token': sessionToken },

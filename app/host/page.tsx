@@ -1,8 +1,8 @@
 'use client'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createRoom, assignTeams, startGame, nextQuestion } from '@/lib/api'
-import { saveHostSession, updateHostSession } from '@/lib/tokens'
+import { createRoom, assignTeams, startGame, nextQuestion, getHostState } from '@/lib/api'
+import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import type { GameType, RoomMode } from '@/types/game'
 
@@ -33,6 +33,34 @@ export default function HostPage() {
   const [totalQ, setTotalQ] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const code = getCurrentHostRoom()
+    if (!code) return
+    const saved = getHostSession(code)
+    if (!saved) return
+    getHostState(code, saved.hostToken).then((data) => {
+      setRoomCode(code)
+      setHostToken(saved.hostToken)
+      setGameType(data.gameType)
+      setMode(data.mode)
+      setPlayers(data.players ?? [])
+      setTeamsAssigned(data.teamsAssigned ?? false)
+      if (data.phase === 'playing') {
+        setSessionId(saved.sessionId ?? '')
+        setQuestionStatus(data.questionStatus ?? 'idle')
+        setCurrentQ(data.currentQ ?? 0)
+        setTotalQ(data.totalQ ?? 0)
+        setPhase('playing')
+      } else if (data.phase === 'finished') {
+        setSessionId(saved.sessionId ?? '')
+        setPhase('finished')
+      } else {
+        setPhase('lobby')
+      }
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleEvent = useCallback((e: GameEvent) => {
     if (e.event === 'player_joined') {
@@ -67,6 +95,7 @@ export default function HostPage() {
       setRoomCode(data.code)
       setHostToken(data.host_token)
       saveHostSession(data.code, { hostToken: data.host_token, roomId: data.room_id })
+      setCurrentHostRoom(data.code)
       setPhase('lobby')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal membuat room.')

@@ -142,6 +142,55 @@ Deno.serve(async (req) => {
       return json({ session_id: session.id })
     }
 
+    // GET /rooms/:code/host-state → restore host state after refresh
+    if (req.method === 'GET' && segments.length === 2 && segments[1] === 'host-state') {
+      const code = segments[0]
+      const hostToken = req.headers.get('x-host-token')
+
+      const [room] = await db.select().from(rooms).where(
+        and(eq(rooms.code, code), eq(rooms.hostToken, hostToken ?? ''))
+      )
+      if (!room) return json({ error: 'unauthorized' }, 403)
+
+      const [allPlayers, allTeams] = await Promise.all([
+        db.select().from(players).where(eq(players.roomId, room.id)),
+        db.select().from(teams).where(eq(teams.roomId, room.id)),
+      ])
+
+      const playersOut = allPlayers.map((p) => {
+        const team = allTeams.find((t) => t.id === p.teamId)
+        return { id: p.id, name: p.name, teamName: team?.name, teamColor: team?.color }
+      })
+
+      if (room.status === 'lobby') {
+        return json({ phase: 'lobby', gameType: room.gameType, mode: room.mode, players: playersOut, teamsAssigned: allTeams.length > 0 })
+      }
+
+      const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id))
+
+      if (room.status === 'finished') {
+        return json({ phase: 'finished', gameType: room.gameType, mode: room.mode, session_id: session?.id })
+      }
+
+      type CachedQ = { id: string; gameType: string; content: unknown }
+      const cachedQs = (session?.questionIds as CachedQ[] | null) ?? []
+      const totalQ = cachedQs.length
+      const currentQ = session && session.status !== 'waiting' ? session.currentQuestionIndex + 1 : 0
+      const questionStatus = session?.status === 'question' ? 'showing' : session?.status === 'reveal' ? 'reveal' : 'idle'
+
+      return json({
+        phase: 'playing',
+        gameType: room.gameType,
+        mode: room.mode,
+        players: playersOut,
+        teamsAssigned: allTeams.length > 0,
+        session_id: session?.id,
+        questionStatus,
+        currentQ,
+        totalQ,
+      })
+    }
+
     // GET /rooms/:code/state → restore game state after refresh (player)
     if (req.method === 'GET' && segments.length === 2 && segments[1] === 'state') {
       const code = segments[0]

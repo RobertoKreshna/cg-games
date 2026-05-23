@@ -33,3 +33,15 @@ export function updateHostSession(roomCode: string, patch: Partial<HostSession>)
   const existing = getHostSession(roomCode) ?? { hostToken: '', roomId: '' }
   saveHostSession(roomCode, { ...existing, ...patch })
 }
+
+export function setCurrentHostRoom(code: string): void {
+  localStorage.setItem('host:current', code)
+}
+
+export function getCurrentHostRoom(): string | null {
+  return localStorage.getItem('host:current')
+}
+
+export function clearCurrentHostRoom(): void {
+  localStorage.removeItem('host:current')
+}
