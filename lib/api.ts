@@ -61,6 +61,12 @@ export function submitAnswer(
   })
 }
 
+export function getRoomState(code: string, sessionToken: string) {
+  return call(`/rooms/${code}/state`, {
+    headers: { 'x-session-token': sessionToken },
+  })
+}
+
 export function getLeaderboard(sessionId: string) {
   return call(`/sessions/${sessionId}/leaderboard`)
 }

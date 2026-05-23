@@ -1,5 +1,5 @@
 import { createDb } from '../_shared/db.ts'
-import { rooms, players, teams, gameSessions } from '../_shared/schema.ts'
+import { rooms, players, teams, gameSessions, answers } from '../_shared/schema.ts'
 import { corsResponse, json } from '../_shared/cors.ts'
 import { eq, and } from 'npm:drizzle-orm'
 
@@ -140,6 +140,51 @@ Deno.serve(async (req) => {
 
       await broadcastToRoom(code, 'game_started', { session_id: session.id })
       return json({ session_id: session.id })
+    }
+
+    // GET /rooms/:code/state → restore game state after refresh (player)
+    if (req.method === 'GET' && segments.length === 2 && segments[1] === 'state') {
+      const code = segments[0]
+      const sessionToken = req.headers.get('x-session-token')
+
+      const [player] = await db.select().from(players).where(eq(players.sessionToken, sessionToken ?? ''))
+      if (!player) return json({ error: 'unauthorized' }, 403)
+
+      const [room] = await db.select().from(rooms).where(eq(rooms.code, code))
+      if (!room) return json({ error: 'room not found' }, 404)
+
+      if (room.status === 'lobby') return json({ phase: 'lobby' })
+
+      const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id))
+      if (!session || session.status === 'waiting') return json({ phase: 'lobby' })
+
+      if (session.status === 'finished' || room.status === 'finished') {
+        return json({ phase: 'finished', session_id: session.id })
+      }
+
+      type CachedQ = { id: string; gameType: string; content: unknown }
+      const cachedQs = (session.questionIds as CachedQ[] | null) ?? []
+      const q = cachedQs[session.currentQuestionIndex]
+      if (!q) return json({ phase: 'lobby' })
+
+      const [existing] = await db.select().from(answers).where(
+        and(eq(answers.sessionId, session.id), eq(answers.questionId, q.id), eq(answers.playerId, player.id))
+      )
+
+      const phase = session.status === 'reveal' ? 'reveal' : existing ? 'answered' : 'question'
+
+      return json({
+        phase,
+        session_id: session.id,
+        current_question: {
+          question_index: session.currentQuestionIndex,
+          question_id: q.id,
+          game_type: q.gameType,
+          content: q.content,
+          total_questions: cachedQs.length,
+        },
+        points: existing?.points ?? null,
+      })
     }
 
     return json({ error: 'not found' }, 404)

@@ -1,7 +1,8 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
+import { getRoomState } from '@/lib/api'
 import { getPlayerSession } from '@/lib/tokens'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
 import { VerseScramble } from '@/components/games/VerseScramble'
@@ -27,6 +28,27 @@ export default function PlayPage() {
   const [question, setQuestion] = useState<ActiveQuestion | null>(null)
   const [lastPoints, setLastPoints] = useState<number | null>(null)
   const sessionIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!session) return
+    getRoomState(roomCode, session.sessionToken).then((data) => {
+      if (data.session_id) sessionIdRef.current = data.session_id
+      if (data.phase === 'finished') {
+        router.push(`/results/${data.session_id}`)
+      } else if (data.current_question) {
+        setQuestion({
+          questionId: data.current_question.question_id,
+          gameType: data.current_question.game_type,
+          content: data.current_question.content,
+          questionIndex: data.current_question.question_index,
+          totalQuestions: data.current_question.total_questions,
+        })
+        if (data.points !== null) setLastPoints(data.points)
+        setPhase(data.phase)
+      }
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleEvent = useCallback((e: GameEvent) => {
     if (e.event === 'game_started') {
