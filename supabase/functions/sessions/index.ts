@@ -97,8 +97,9 @@ Deno.serve(async (req) => {
         .where(and(eq(gameSessions.id, sessionId), eq(rooms.hostToken, hostToken ?? '')))
       if (!row) return json({ error: 'unauthorized' }, 403)
 
-      // Initialize question list on first call by shuffling and slicing to questionCount
+      // Initialize question list on first call
       let questionIds: string[] = (row.session.questionIds as string[] | null) ?? []
+      let freshIds: string[] | null = null
       if (questionIds.length === 0) {
         const pool = await db
           .select({ id: questions.id })
@@ -107,22 +108,29 @@ Deno.serve(async (req) => {
           .orderBy(questions.orderIndex)
         const shuffled = [...pool].sort(() => Math.random() - 0.5)
         questionIds = shuffled.slice(0, row.room.questionCount).map((q) => q.id)
-        await db.update(gameSessions).set({ questionIds }).where(eq(gameSessions.id, sessionId))
+        freshIds = questionIds
       }
 
       const nextIndex = row.session.status === 'waiting' ? 0 : row.session.currentQuestionIndex + 1
 
       if (nextIndex >= questionIds.length) {
-        await db.update(gameSessions).set({ status: 'finished' }).where(eq(gameSessions.id, sessionId))
-        await db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, row.room.id))
+        await Promise.all([
+          db.update(gameSessions).set({ status: 'finished' }).where(eq(gameSessions.id, sessionId)),
+          db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, row.room.id)),
+        ])
         await broadcastToRoom(row.room.code, 'game_finished', { session_id: sessionId })
         return json({ status: 'finished', session_id: sessionId })
       }
 
-      const [q] = await db.select().from(questions).where(eq(questions.id, questionIds[nextIndex]))
-      await db.update(gameSessions)
-        .set({ currentQuestionIndex: nextIndex, status: 'question' })
-        .where(eq(gameSessions.id, sessionId))
+      // Parallel: fetch question + update session (fold freshIds save into this update)
+      const sessionSet = freshIds
+        ? { questionIds: freshIds, currentQuestionIndex: nextIndex, status: 'question' as const }
+        : { currentQuestionIndex: nextIndex, status: 'question' as const }
+
+      const [[q]] = await Promise.all([
+        db.select().from(questions).where(eq(questions.id, questionIds[nextIndex])),
+        db.update(gameSessions).set(sessionSet).where(eq(gameSessions.id, sessionId)),
+      ])
 
       await broadcastToRoom(row.room.code, 'question_show', {
         question_index: nextIndex,

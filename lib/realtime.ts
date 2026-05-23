@@ -21,22 +21,50 @@ export function useGameChannel(
   roomCode: string | null,
   onEvent: (e: GameEvent) => void,
 ) {
-  const channelRef = useRef<RealtimeChannel | null>(null)
   const onEventRef = useRef(onEvent)
   onEventRef.current = onEvent
 
   useEffect(() => {
     if (!roomCode) return
-    const channel = supabase.channel(`room:${roomCode}`, {
-      config: { broadcast: { self: false } },
-    })
-    EVENTS.forEach((event) => {
-      channel.on('broadcast', { event }, ({ payload }) => {
-        onEventRef.current({ event, payload } as GameEvent)
+
+    let channel: RealtimeChannel | null = null
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null
+    let mounted = true
+
+    function connect() {
+      channel = supabase.channel(`room:${roomCode}`, {
+        config: { broadcast: { self: false } },
       })
-    })
-    channel.subscribe()
-    channelRef.current = channel
-    return () => { channel.unsubscribe() }
+      EVENTS.forEach((event) => {
+        channel!.on('broadcast', { event }, ({ payload }) => {
+          onEventRef.current({ event, payload } as GameEvent)
+        })
+      })
+      channel.subscribe((status) => {
+        if (!mounted) return
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          channel?.unsubscribe()
+          retryTimeout = setTimeout(connect, 2000)
+        }
+      })
+    }
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible' && channel?.state !== 'joined') {
+        channel?.unsubscribe()
+        if (retryTimeout) clearTimeout(retryTimeout)
+        connect()
+      }
+    }
+
+    connect()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      mounted = false
+      if (retryTimeout) clearTimeout(retryTimeout)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      channel?.unsubscribe()
+    }
   }, [roomCode])
 }

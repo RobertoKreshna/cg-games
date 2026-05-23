@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface TimerProps {
   durationMs: number
@@ -9,6 +9,8 @@ interface TimerProps {
 
 export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
   const [remainingMs, setRemainingMs] = useState(durationMs)
+  const onExpireRef = useRef(onExpire)
+  onExpireRef.current = onExpire
 
   useEffect(() => {
     setRemainingMs(durationMs)
@@ -18,11 +20,11 @@ export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
       setRemainingMs(remaining)
       if (remaining === 0) {
         clearInterval(interval)
-        onExpire()
+        onExpireRef.current()
       }
     }, 100)
     return () => clearInterval(interval)
-  }, [durationMs, onExpire])
+  }, [durationMs])
 
   const pct = remainingMs / durationMs
   const seconds = Math.ceil(remainingMs / 1000)

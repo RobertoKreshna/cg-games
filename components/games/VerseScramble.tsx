@@ -16,7 +16,9 @@ interface Props {
 
 export function VerseScramble({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
   const [placed, setPlaced] = useState<number[]>([])
-  const [available, setAvailable] = useState<number[]>(() => content.words.map((_, i) => i))
+  const [available, setAvailable] = useState<number[]>(() =>
+    content.words.map((_, i) => i).sort(() => Math.random() - 0.5)
+  )
   const [answered, setAnswered] = useState(false)
   const startRef = useRef(Date.now())
 
