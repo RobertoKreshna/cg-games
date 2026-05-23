@@ -97,23 +97,24 @@ Deno.serve(async (req) => {
         .where(and(eq(gameSessions.id, sessionId), eq(rooms.hostToken, hostToken ?? '')))
       if (!row) return json({ error: 'unauthorized' }, 403)
 
-      // Initialize question list on first call
-      let questionIds: string[] = (row.session.questionIds as string[] | null) ?? []
-      let freshIds: string[] | null = null
-      if (questionIds.length === 0) {
+      // Cache stores full question objects — no per-question DB lookup after first call
+      type CachedQ = { id: string; gameType: string; content: unknown }
+      let cachedQs: CachedQ[] = (row.session.questionIds as CachedQ[] | null) ?? []
+      const isFirstCall = cachedQs.length === 0
+
+      if (isFirstCall) {
         const pool = await db
-          .select({ id: questions.id })
+          .select({ id: questions.id, gameType: questions.gameType, content: questions.content })
           .from(questions)
           .where(eq(questions.gameType, row.room.gameType))
           .orderBy(questions.orderIndex)
         const shuffled = [...pool].sort(() => Math.random() - 0.5)
-        questionIds = shuffled.slice(0, row.room.questionCount).map((q) => q.id)
-        freshIds = questionIds
+        cachedQs = shuffled.slice(0, row.room.questionCount)
       }
 
       const nextIndex = row.session.status === 'waiting' ? 0 : row.session.currentQuestionIndex + 1
 
-      if (nextIndex >= questionIds.length) {
+      if (nextIndex >= cachedQs.length) {
         await Promise.all([
           db.update(gameSessions).set({ status: 'finished' }).where(eq(gameSessions.id, sessionId)),
           db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, row.room.id)),
@@ -122,23 +123,22 @@ Deno.serve(async (req) => {
         return json({ status: 'finished', session_id: sessionId })
       }
 
-      // Parallel: fetch question + update session (fold freshIds save into this update)
-      const sessionSet = freshIds
-        ? { questionIds: freshIds, currentQuestionIndex: nextIndex, status: 'question' as const }
+      const q = cachedQs[nextIndex]
+      const sessionSet = isFirstCall
+        ? { questionIds: cachedQs as unknown, currentQuestionIndex: nextIndex, status: 'question' as const }
         : { currentQuestionIndex: nextIndex, status: 'question' as const }
 
-      const [[q]] = await Promise.all([
-        db.select().from(questions).where(eq(questions.id, questionIds[nextIndex])),
+      // Parallel: DB update + broadcast (no separate question SELECT needed)
+      await Promise.all([
         db.update(gameSessions).set(sessionSet).where(eq(gameSessions.id, sessionId)),
+        broadcastToRoom(row.room.code, 'question_show', {
+          question_index: nextIndex,
+          question_id: q.id,
+          game_type: q.gameType,
+          content: q.content,
+          total_questions: cachedQs.length,
+        }),
       ])
-
-      await broadcastToRoom(row.room.code, 'question_show', {
-        question_index: nextIndex,
-        question_id: q.id,
-        game_type: q.gameType,
-        content: q.content,
-        total_questions: questionIds.length,
-      })
 
       return json({ status: 'question', question_index: nextIndex, question_id: q.id })
     }
