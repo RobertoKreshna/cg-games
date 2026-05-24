@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createRoom, assignTeams, startGame, nextQuestion, getHostState } from '@/lib/api'
-import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession } from '@/lib/tokens'
+import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import type { GameType, RoomMode } from '@/types/game'
 
@@ -55,6 +55,7 @@ export default function HostPage() {
       } else if (data.phase === 'finished') {
         setSessionId(saved.sessionId ?? '')
         setPhase('finished')
+        clearHostSession(code) // game over, no need to restore next time
       } else {
         setPhase('lobby')
       }
@@ -82,6 +83,7 @@ export default function HostPage() {
       setQuestionStatus('reveal')
     } else if (e.event === 'game_finished') {
       setPhase('finished')
+      clearHostSession(getCurrentHostRoom() ?? '')
     }
   }, [])
 
@@ -345,7 +347,7 @@ export default function HostPage() {
         <button onClick={() => router.push(`/results/${sessionId}`)} className="btn-primary py-4 text-base w-full">
           Lihat Leaderboard
         </button>
-        <button onClick={() => router.push('/')} className="btn-secondary py-3 text-base w-full">
+        <button onClick={() => { clearHostSession(roomCode); router.push('/') }} className="btn-secondary py-3 text-base w-full">
           Kembali ke Home
         </button>
       </div>

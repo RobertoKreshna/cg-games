@@ -34,6 +34,19 @@ export function updateHostSession(roomCode: string, patch: Partial<HostSession>)
   saveHostSession(roomCode, { ...existing, ...patch })
 }
 
+export function setCurrentPlayerRoom(code: string): void {
+  localStorage.setItem('player:current', code)
+}
+
+export function getCurrentPlayerRoom(): string | null {
+  return localStorage.getItem('player:current')
+}
+
+export function clearPlayerSession(roomCode: string): void {
+  localStorage.removeItem('player:current')
+  localStorage.removeItem(`player:${roomCode}`)
+}
+
 export function setCurrentHostRoom(code: string): void {
   localStorage.setItem('host:current', code)
 }
@@ -42,6 +55,7 @@ export function getCurrentHostRoom(): string | null {
   return localStorage.getItem('host:current')
 }
 
-export function clearCurrentHostRoom(): void {
+export function clearHostSession(roomCode: string): void {
   localStorage.removeItem('host:current')
+  localStorage.removeItem(`host:${roomCode}`)
 }

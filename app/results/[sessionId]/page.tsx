@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getLeaderboard } from '@/lib/api'
+import { clearPlayerSession, getCurrentPlayerRoom } from '@/lib/tokens'
 import { Leaderboard } from '@/components/shared/Leaderboard'
 import type { LeaderboardEntry, RoomMode } from '@/types/game'
 
@@ -38,7 +39,14 @@ export default function ResultsPage() {
         )}
       </div>
 
-      <button onClick={() => router.push('/')} className="btn-secondary py-4 text-base w-full mt-6">
+      <button
+        onClick={() => {
+          const code = getCurrentPlayerRoom()
+          if (code) clearPlayerSession(code)
+          router.push('/')
+        }}
+        className="btn-secondary py-4 text-base w-full mt-6"
+      >
         ← Kembali ke Home
       </button>
     </main>

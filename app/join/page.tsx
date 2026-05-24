@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { joinRoom } from '@/lib/api'
-import { savePlayerSession } from '@/lib/tokens'
+import { savePlayerSession, setCurrentPlayerRoom } from '@/lib/tokens'
 
 export default function JoinPage() {
   const router = useRouter()
@@ -17,13 +17,15 @@ export default function JoinPage() {
     setError('')
     try {
       const data = await joinRoom(code.toUpperCase().trim(), name.trim())
-      savePlayerSession(code.toUpperCase().trim(), {
+      const roomCode = code.toUpperCase().trim()
+      savePlayerSession(roomCode, {
         sessionToken: data.session_token,
         playerId: data.player_id,
         gameType: data.room.game_type,
         mode: data.room.mode,
       })
-      router.push(`/play/${code.toUpperCase().trim()}`)
+      setCurrentPlayerRoom(roomCode)
+      router.push(`/play/${roomCode}`)
     } catch {
       setError('Room tidak ditemukan atau game sudah mulai.')
     } finally {
