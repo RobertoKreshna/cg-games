@@ -27,6 +27,7 @@ export default function PlayPage() {
   const [phase, setPhase] = useState<Phase>('lobby')
   const [question, setQuestion] = useState<ActiveQuestion | null>(null)
   const [lastPoints, setLastPoints] = useState<number | null>(null)
+  const [correctAnswer, setCorrectAnswer] = useState<unknown>(null)
   const sessionIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function PlayPage() {
       sessionIdRef.current = e.payload.session_id
     } else if (e.event === 'question_show') {
       setLastPoints(null)
+      setCorrectAnswer(null)
       setQuestion({
         questionId: e.payload.question_id,
         gameType: e.payload.game_type,
@@ -64,6 +66,7 @@ export default function PlayPage() {
       })
       setPhase('question')
     } else if (e.event === 'question_reveal') {
+      setCorrectAnswer(e.payload.correct_answer)
       setPhase('reveal')
     } else if (e.event === 'game_finished') {
       router.push(`/results/${sessionIdRef.current}`)
@@ -142,7 +145,7 @@ export default function PlayPage() {
       )}
 
       {(phase === 'answered' || phase === 'reveal') && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
           {lastPoints !== null ? (
             <>
               <div className="text-6xl">
@@ -158,6 +161,28 @@ export default function PlayPage() {
               <p className="text-[#999] text-sm">Menunggu soal berikutnya...</p>
             </div>
           )}
+
+          {phase === 'reveal' && correctAnswer !== null && question && (
+            <div className="card px-6 py-4 flex flex-col gap-2 w-full max-w-xs text-center">
+              <p className="tag">Jawaban Benar</p>
+              {question.gameType === 'bible_quiz' && (
+                <p className="text-[#111] font-semibold text-sm">
+                  {(question.content as BibleQuizContent).options[correctAnswer as number]}
+                </p>
+              )}
+              {question.gameType === 'verse_scramble' && (
+                <p className="text-[#111] font-semibold text-sm leading-relaxed">
+                  {(correctAnswer as number[]).map((i) => (question.content as VerseScrambleContent).words[i]).join(' ')}
+                </p>
+              )}
+              {question.gameType === 'emoji_story' && (
+                <p className="text-[#111] font-semibold text-sm">
+                  {(correctAnswer as number[]).map((i) => (question.content as EmojiStoryContent).words[i]).join(', ')}
+                </p>
+              )}
+            </div>
+          )}
+
           <p className="text-[#CCC] text-xs animate-pulse">Menunggu host...</p>
         </div>
       )}

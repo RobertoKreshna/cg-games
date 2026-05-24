@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
         await db.update(gameSessions).set({ status: 'reveal' }).where(eq(gameSessions.id, sessionId))
         await broadcastToRoom(sessionRow.room.code, 'question_reveal', {
           question_id,
-          correct_answer: content.answer_index ?? content.correct,
+          correct_answer: content.answer_index ?? content.correct_order ?? content.correct,
         })
       }
 
