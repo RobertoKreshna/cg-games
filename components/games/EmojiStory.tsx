@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Timer } from '@/components/shared/Timer'
 import { submitAnswer } from '@/lib/api'
 import type { EmojiStoryContent } from '@/types/game'
@@ -18,6 +18,14 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
   const [selected, setSelected] = useState<number[]>([])
   const [answered, setAnswered] = useState(false)
   const startRef = useRef(Date.now())
+  const shuffledIndices = useMemo(() => {
+    const arr = content.words.map((_, i) => i)
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr
+  }, [content.words.length])
 
   function toggleWord(index: number) {
     if (answered) return
@@ -69,13 +77,13 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {content.words.map((word, i) => {
-          const isSelected = selected.includes(i)
+        {shuffledIndices.map((origIdx) => {
+          const isSelected = selected.includes(origIdx)
           const isFull = selected.length >= 5 && !isSelected
           return (
             <button
-              key={i}
-              onClick={() => toggleWord(i)}
+              key={origIdx}
+              onClick={() => toggleWord(origIdx)}
               disabled={answered || isFull}
               className={`py-3 px-4 rounded-xl text-sm font-medium text-left border transition-all ${
                 isSelected
@@ -83,7 +91,7 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
                   : 'bg-white text-[#111] border-[#E8E8E8]'
               } ${isFull ? 'opacity-25' : ''}`}
             >
-              {word}
+              {content.words[origIdx]}
             </button>
           )
         })}
