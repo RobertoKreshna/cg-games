@@ -11,7 +11,7 @@ interface Props {
   sessionToken: string
   questionIndex: number
   totalQuestions: number
-  onAnswered: (points: number) => void
+  onAnswered: (points: number, submittedAnswer: string) => void
 }
 
 export function EmojiStory({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
@@ -34,7 +34,7 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
       submitted_answer: JSON.stringify(indices),
       time_taken_ms: elapsed,
     })
-    onAnswered(result.points)
+    onAnswered(result.points, JSON.stringify(indices))
   }
 
   async function handleSubmit() {

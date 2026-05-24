@@ -11,7 +11,7 @@ interface Props {
   sessionToken: string
   questionIndex: number
   totalQuestions: number
-  onAnswered: (points: number) => void
+  onAnswered: (points: number, submittedAnswer: string) => void
 }
 
 const OPTIONS = [
@@ -35,7 +35,7 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
       submitted_answer: String(index),
       time_taken_ms: Date.now() - startRef.current,
     })
-    onAnswered(result.points)
+    onAnswered(result.points, String(index))
   }
 
   function handleExpire() {
@@ -45,7 +45,7 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
       question_id: questionId,
       submitted_answer: '-1',
       time_taken_ms: 15000,
-    }).then((r) => onAnswered(r.points))
+    }).then((r) => onAnswered(r.points, '-1'))
   }
 
   return (
