@@ -164,7 +164,7 @@ export default function PlayPage() {
             </div>
           )}
 
-          {phase === 'reveal' && correctAnswer !== null && question && (() => {
+          {phase === 'reveal' && correctAnswer != null && question && (() => {
             if (question.gameType === 'bible_quiz') {
               const correct = correctAnswer as number
               const submitted = submittedAnswer !== null ? parseInt(submittedAnswer) : -1
@@ -192,7 +192,7 @@ export default function PlayPage() {
             }
 
             if (question.gameType === 'verse_scramble') {
-              const correct = correctAnswer as number[]
+              const correct = Array.isArray(correctAnswer) ? correctAnswer as number[] : []
               const submitted = submittedAnswer ? JSON.parse(submittedAnswer) as number[] : []
               const c = question.content as VerseScrambleContent
               return (
@@ -224,7 +224,7 @@ export default function PlayPage() {
             }
 
             if (question.gameType === 'emoji_story') {
-              const correct = correctAnswer as number[]
+              const correct = Array.isArray(correctAnswer) ? correctAnswer as number[] : []
               const submitted = submittedAnswer ? JSON.parse(submittedAnswer) as number[] : []
               const c = question.content as EmojiStoryContent
               return (
