@@ -83,7 +83,6 @@ export default function HostPage() {
       setQuestionStatus('reveal')
     } else if (e.event === 'game_finished') {
       setPhase('finished')
-      clearHostSession(getCurrentHostRoom() ?? '')
     }
   }, [])
 
