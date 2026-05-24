@@ -9,12 +9,13 @@ export type GameEvent =
   | { event: 'teams_assigned'; payload: { teams: Array<{ id: string; name: string; color: string; members: Array<{ id: string; name: string }> }> } }
   | { event: 'game_started'; payload: { session_id: string } }
   | { event: 'question_show'; payload: { question_index: number; question_id: string; game_type: GameType; content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent; total_questions: number } }
+  | { event: 'player_answered'; payload: { player_id: string; name: string } }
   | { event: 'question_reveal'; payload: { question_id: string; correct_answer: unknown } }
   | { event: 'game_finished'; payload: { session_id: string } }
 
 const EVENTS: GameEvent['event'][] = [
   'player_joined', 'teams_assigned', 'game_started',
-  'question_show', 'question_reveal', 'game_finished',
+  'question_show', 'player_answered', 'question_reveal', 'game_finished',
 ]
 
 export function useGameChannel(

@@ -185,22 +185,24 @@ Deno.serve(async (req) => {
         timeTakenMs: time_taken_ms,
       }).onConflictDoNothing()
 
-      // Auto-reveal when all players in room have answered this question
-      const [sessionRow] = await db
-        .select({ session: gameSessions, room: rooms })
-        .from(gameSessions)
-        .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
-        .where(eq(gameSessions.id, sessionId))
+      // Fetch session+room and answeredCount in parallel (answeredCount doesn't need room info)
+      const [[sessionRow], [{ answeredCount }]] = await Promise.all([
+        db.select({ session: gameSessions, room: rooms })
+          .from(gameSessions)
+          .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
+          .where(eq(gameSessions.id, sessionId)),
+        db.select({ answeredCount: sql<number>`count(*)::int` })
+          .from(answers)
+          .where(and(eq(answers.sessionId, sessionId), eq(answers.questionId, question_id))),
+      ])
 
-      const [{ totalPlayers }] = await db
-        .select({ totalPlayers: sql<number>`count(*)::int` })
-        .from(players)
-        .where(eq(players.roomId, sessionRow.room.id))
-
-      const [{ answeredCount }] = await db
-        .select({ answeredCount: sql<number>`count(*)::int` })
-        .from(answers)
-        .where(and(eq(answers.sessionId, sessionId), eq(answers.questionId, question_id)))
+      // Broadcast player_answered and fetch totalPlayers in parallel
+      const [[{ totalPlayers }]] = await Promise.all([
+        db.select({ totalPlayers: sql<number>`count(*)::int` })
+          .from(players)
+          .where(eq(players.roomId, sessionRow.room.id)),
+        broadcastToRoom(sessionRow.room.code, 'player_answered', { player_id: player.id, name: player.name }),
+      ])
 
       if (answeredCount >= totalPlayers) {
         await db.update(gameSessions).set({ status: 'reveal' }).where(eq(gameSessions.id, sessionId))

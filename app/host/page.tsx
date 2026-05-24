@@ -29,6 +29,7 @@ export default function HostPage() {
   const [teamCount, setTeamCount] = useState(3)
   const [teamsAssigned, setTeamsAssigned] = useState(false)
   const [questionStatus, setQuestionStatus] = useState<'idle' | 'showing' | 'reveal'>('idle')
+  const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set())
   const [currentQ, setCurrentQ] = useState(0)
   const [totalQ, setTotalQ] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -79,6 +80,9 @@ export default function HostPage() {
       setCurrentQ(e.payload.question_index + 1)
       setTotalQ(e.payload.total_questions)
       setQuestionStatus('showing')
+      setAnsweredIds(new Set())
+    } else if (e.event === 'player_answered') {
+      setAnsweredIds((prev) => new Set(prev).add(e.payload.player_id))
     } else if (e.event === 'question_reveal') {
       setQuestionStatus('reveal')
     } else if (e.event === 'game_finished') {
@@ -302,23 +306,40 @@ export default function HostPage() {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+        <div className="flex-1 flex flex-col gap-3">
           {questionStatus === 'idle' && (
-            <div className="card p-8 flex flex-col items-center gap-2 text-center w-full max-w-sm">
+            <div className="card p-8 flex flex-col items-center gap-2 text-center">
               <p className="text-[#999] text-sm">Tekan tombol untuk mulai soal pertama</p>
             </div>
           )}
-          {questionStatus === 'showing' && (
-            <div className="card p-8 flex flex-col items-center gap-2 text-center w-full max-w-sm">
-              <p className="text-2xl animate-pulse">⏱</p>
-              <p className="text-[#111] font-semibold text-sm">Player sedang menjawab...</p>
-              <p className="text-[#999] text-xs">{players.length} player</p>
-            </div>
-          )}
-          {questionStatus === 'reveal' && (
-            <div className="card p-8 flex flex-col items-center gap-2 text-center w-full max-w-sm">
-              <p className="text-2xl">✅</p>
-              <p className="text-[#111] font-semibold text-sm">Semua sudah menjawab</p>
+          {(questionStatus === 'showing' || questionStatus === 'reveal') && (
+            <div className="card p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[#111] font-semibold text-sm">
+                  {questionStatus === 'showing' ? (
+                    <span className="animate-pulse">⏱ Menunggu jawaban</span>
+                  ) : '✅ Semua sudah menjawab'}
+                </p>
+                <span className="text-[#999] text-xs font-medium">
+                  {questionStatus === 'reveal' ? players.length : answeredIds.size} / {players.length}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {players.map((p) => {
+                  const done = questionStatus === 'reveal' || answeredIds.has(p.id)
+                  return (
+                    <div key={p.id} className="flex items-center gap-2.5">
+                      <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center transition-colors ${done ? 'bg-[#22C55E]' : 'bg-[#E8E8E8]'}`}>
+                        {done && <span className="text-white text-[9px] font-bold leading-none">✓</span>}
+                      </div>
+                      <span className={`text-sm font-medium transition-colors ${done ? 'text-[#111]' : 'text-[#BBB]'}`}>
+                        {p.name}
+                      </span>
+                      {p.teamName && <span className="text-[#AAA] text-xs ml-auto">{p.teamName}</span>}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
