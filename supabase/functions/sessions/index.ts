@@ -185,27 +185,23 @@ Deno.serve(async (req) => {
         timeTakenMs: time_taken_ms,
       }).onConflictDoNothing()
 
-      // Fetch session+room and answeredCount in parallel (answeredCount doesn't need room info)
-      const [[sessionRow], [{ answeredCount }]] = await Promise.all([
-        db.select({ session: gameSessions, room: rooms })
-          .from(gameSessions)
-          .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
-          .where(eq(gameSessions.id, sessionId)),
-        db.select({ answeredCount: sql<number>`count(*)::int` })
-          .from(answers)
-          .where(and(eq(answers.sessionId, sessionId), eq(answers.questionId, question_id))),
-      ])
+      const [sessionRow] = await db.select({ session: gameSessions, room: rooms })
+        .from(gameSessions)
+        .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
+        .where(eq(gameSessions.id, sessionId))
 
-      // Broadcast player_answered and fetch totalPlayers in parallel
-      const [[{ totalPlayers }]] = await Promise.all([
-        db.select({ totalPlayers: sql<number>`count(*)::int` })
-          .from(players)
-          .where(eq(players.roomId, sessionRow.room.id)),
-        broadcastToRoom(sessionRow.room.code, 'player_answered', { player_id: player.id, name: player.name }),
-      ])
+      await broadcastToRoom(sessionRow.room.code, 'player_answered', { player_id: player.id, name: player.name })
 
-      if (answeredCount >= totalPlayers) {
-        await db.update(gameSessions).set({ status: 'reveal' }).where(eq(gameSessions.id, sessionId))
+      // Atomic reveal: only the request that successfully transitions status from 'question' → 'reveal'
+      // broadcasts question_reveal. This prevents the race where two concurrent submissions both see
+      // answeredCount < totalPlayers because the other's INSERT hasn't committed yet.
+      const [revealed] = await db
+        .update(gameSessions)
+        .set({ status: 'reveal' })
+        .where(sql`id = ${sessionId} AND status = 'question' AND (SELECT COUNT(*) FROM answers WHERE session_id = ${sessionId} AND question_id = ${question_id}) >= (SELECT COUNT(*) FROM players WHERE room_id = ${sessionRow.room.id})`)
+        .returning({ id: gameSessions.id })
+
+      if (revealed) {
         await broadcastToRoom(sessionRow.room.code, 'question_reveal', {
           question_id,
           correct_answer: content.answer_index ?? content.correct_order ?? content.correct,
