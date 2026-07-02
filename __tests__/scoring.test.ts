@@ -39,19 +39,19 @@ describe('calcVerseScramblePoints', () => {
 })
 
 describe('calcEmojiStoryPoints', () => {
-  it('returns 1000 for exact match', () => {
-    expect(calcEmojiStoryPoints('mukjizat lima roti dua ikan', 'mukjizat lima roti dua ikan')).toBe(1000)
+  it('returns 1000 for all 5 correct words selected', () => {
+    expect(calcEmojiStoryPoints([0, 1, 2, 3, 4], [0, 1, 2, 3, 4])).toBe(1000)
   })
-  it('returns 1000 for case-insensitive match', () => {
-    expect(calcEmojiStoryPoints('MUKJIZAT LIMA ROTI DUA IKAN', 'mukjizat lima roti dua ikan')).toBe(1000)
+  it('returns 600 for 3 of 5 correct words selected', () => {
+    expect(calcEmojiStoryPoints([0, 1, 2, 5, 6], [0, 1, 2, 3, 4])).toBe(600)
   })
-  it('returns 1000 for trimmed match', () => {
-    expect(calcEmojiStoryPoints('  mukjizat lima roti dua ikan  ', 'mukjizat lima roti dua ikan')).toBe(1000)
+  it('returns 200 for 1 of 5 correct words selected', () => {
+    expect(calcEmojiStoryPoints([0, 5, 6, 7, 8], [0, 1, 2, 3, 4])).toBe(200)
   })
-  it('returns 500 for partial match (≥60% key words)', () => {
-    expect(calcEmojiStoryPoints('roti ikan dua', 'mukjizat lima roti dua ikan')).toBe(500)
+  it('returns 0 for no correct words selected', () => {
+    expect(calcEmojiStoryPoints([5, 6, 7, 8, 9], [0, 1, 2, 3, 4])).toBe(0)
   })
-  it('returns 0 for no meaningful match', () => {
-    expect(calcEmojiStoryPoints('tidak tahu', 'mukjizat lima roti dua ikan')).toBe(0)
+  it('returns 0 for empty selection', () => {
+    expect(calcEmojiStoryPoints([], [0, 1, 2, 3, 4])).toBe(0)
   })
 })

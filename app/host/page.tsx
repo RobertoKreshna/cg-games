@@ -111,8 +111,11 @@ export default function HostPage() {
 
   async function handleAssignTeams() {
     setLoading(true)
+    setError('')
     try {
       await assignTeams(roomCode, hostToken, teamCount)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengacak tim.')
     } finally {
       setLoading(false)
     }
@@ -120,11 +123,14 @@ export default function HostPage() {
 
   async function handleStart() {
     setLoading(true)
+    setError('')
     try {
       const data = await startGame(roomCode, hostToken)
       setSessionId(data.session_id)
       updateHostSession(roomCode, { sessionId: data.session_id })
       setPhase('playing')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memulai game.')
     } finally {
       setLoading(false)
     }
@@ -133,8 +139,11 @@ export default function HostPage() {
   async function handleNext() {
     if (!sessionId) return
     setLoading(true)
+    setError('')
     try {
       await nextQuestion(sessionId, hostToken)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memuat soal berikutnya.')
     } finally {
       setLoading(false)
     }
@@ -275,6 +284,7 @@ export default function HostPage() {
           </div>
         )}
 
+        {error && <p className="text-red-500 text-xs text-center">{error}</p>}
         <button
           onClick={handleStart}
           disabled={loading || players.length === 0 || (mode === 'team' && !teamsAssigned)}
@@ -344,6 +354,7 @@ export default function HostPage() {
           )}
         </div>
 
+        {error && <p className="text-red-500 text-xs text-center">{error}</p>}
         <button
           onClick={handleNext}
           disabled={loading || questionStatus === 'showing'}

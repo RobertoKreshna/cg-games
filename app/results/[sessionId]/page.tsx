@@ -12,6 +12,7 @@ export default function ResultsPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [mode, setMode] = useState<RoomMode>('individual')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     getLeaderboard(sessionId)
@@ -19,6 +20,7 @@ export default function ResultsPage() {
         setEntries(data.leaderboard)
         setMode(data.mode)
       })
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [sessionId])
 
@@ -32,6 +34,8 @@ export default function ResultsPage() {
       <div className="flex-1">
         {loading ? (
           <p className="text-[#CCC] text-sm text-center py-12">Memuat...</p>
+        ) : error ? (
+          <p className="text-red-400 text-sm text-center py-12">Gagal memuat hasil. Coba lagi.</p>
         ) : entries.length === 0 ? (
           <p className="text-[#CCC] text-sm text-center py-12">Belum ada data.</p>
         ) : (

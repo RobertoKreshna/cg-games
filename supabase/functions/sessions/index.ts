@@ -147,35 +147,58 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && segments.length === 2 && segments[1] === 'answer') {
       const sessionId = segments[0]
       const sessionToken = req.headers.get('x-session-token')
-      const { question_id, submitted_answer, time_taken_ms } = await req.json()
+      const body = await req.json().catch(() => null)
+      if (!body) return json({ error: 'invalid request body' }, 400)
+      const { question_id, submitted_answer, time_taken_ms } = body
+      if (!question_id || submitted_answer == null || time_taken_ms == null) {
+        return json({ error: 'missing required fields' }, 400)
+      }
 
       const [player] = await db.select().from(players).where(eq(players.sessionToken, sessionToken ?? ''))
       if (!player) return json({ error: 'unauthorized' }, 403)
 
-      const [question] = await db.select().from(questions).where(eq(questions.id, question_id))
-      if (!question) return json({ error: 'question not found' }, 404)
+      // Fetch session+room once; use for auth, question validation, broadcast, and reveal
+      const [sessionRow] = await db
+        .select({ session: gameSessions, room: rooms })
+        .from(gameSessions)
+        .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
+        .where(eq(gameSessions.id, sessionId))
 
-      const content = question.content as Record<string, unknown>
+      if (!sessionRow) return json({ error: 'session not found' }, 404)
+      if (player.roomId !== sessionRow.room.id) return json({ error: 'unauthorized' }, 403)
+
+      // Validate question belongs to this session using the cached question list
+      type CachedQ = { id: string; gameType: string; content: unknown }
+      const cachedQs = (sessionRow.session.questionIds as CachedQ[] | null) ?? []
+      const cachedQuestion = cachedQs.find((q: CachedQ) => q.id === question_id)
+      if (!cachedQuestion) return json({ error: 'question not in this session' }, 400)
+
+      const content = cachedQuestion.content as Record<string, unknown>
+      const gameType = cachedQuestion.gameType
       let isCorrect = false
       let points = 0
 
-      if (question.gameType === 'bible_quiz') {
-        isCorrect = submitted_answer === String(content.answer_index)
-        points = isCorrect ? calcBibleQuizPoints(time_taken_ms) : 0
-      } else if (question.gameType === 'verse_scramble') {
-        const correctOrder = content.correct_order as number[]
-        const submittedOrder = JSON.parse(submitted_answer) as number[]
-        const correctWords = correctOrder.filter((v, i) => v === submittedOrder[i]).length
-        isCorrect = correctWords === correctOrder.length
-        points = calcVerseScramblePoints(correctWords, correctOrder.length, time_taken_ms)
-      } else if (question.gameType === 'emoji_story') {
-        const correct = content.correct as number[]
-        const selected = JSON.parse(submitted_answer) as number[]
-        points = calcEmojiStoryPoints(selected, correct)
-        isCorrect = points === 1000
+      try {
+        if (gameType === 'bible_quiz') {
+          isCorrect = submitted_answer === String(content.answer_index)
+          points = isCorrect ? calcBibleQuizPoints(time_taken_ms) : 0
+        } else if (gameType === 'verse_scramble') {
+          const correctOrder = content.correct_order as number[]
+          const submittedOrder = JSON.parse(submitted_answer) as number[]
+          const correctWords = correctOrder.filter((v: number, i: number) => v === submittedOrder[i]).length
+          isCorrect = correctWords === correctOrder.length
+          points = calcVerseScramblePoints(correctWords, correctOrder.length, time_taken_ms)
+        } else if (gameType === 'emoji_story') {
+          const correct = content.correct as number[]
+          const selected = JSON.parse(submitted_answer) as number[]
+          points = calcEmojiStoryPoints(selected, correct)
+          isCorrect = points === 1000
+        }
+      } catch {
+        return json({ error: 'invalid answer format' }, 400)
       }
 
-      await db.insert(answers).values({
+      const [insertedAnswer] = await db.insert(answers).values({
         playerId: player.id,
         questionId: question_id,
         sessionId,
@@ -183,12 +206,11 @@ Deno.serve(async (req) => {
         isCorrect,
         points,
         timeTakenMs: time_taken_ms,
-      }).onConflictDoNothing()
+      }).onConflictDoNothing().returning({ id: answers.id })
 
-      const [sessionRow] = await db.select({ session: gameSessions, room: rooms })
-        .from(gameSessions)
-        .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
-        .where(eq(gameSessions.id, sessionId))
+      if (!insertedAnswer) {
+        return json({ points, is_correct: isCorrect })
+      }
 
       await broadcastToRoom(sessionRow.room.code, 'player_answered', { player_id: player.id, name: player.name })
 

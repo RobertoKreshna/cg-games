@@ -37,12 +37,16 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
   }
 
   async function doSubmit(indices: number[], elapsed: number) {
-    const result = await submitAnswer(sessionId, sessionToken, {
-      question_id: questionId,
-      submitted_answer: JSON.stringify(indices),
-      time_taken_ms: elapsed,
-    })
-    onAnswered(result.points, JSON.stringify(indices))
+    try {
+      const result = await submitAnswer(sessionId, sessionToken, {
+        question_id: questionId,
+        submitted_answer: JSON.stringify(indices),
+        time_taken_ms: elapsed,
+      })
+      onAnswered(result.points, JSON.stringify(indices))
+    } catch {
+      onAnswered(0, JSON.stringify(indices))
+    }
   }
 
   async function handleSubmit() {

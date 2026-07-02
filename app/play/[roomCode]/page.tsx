@@ -22,8 +22,9 @@ interface ActiveQuestion {
 export default function PlayPage() {
   const { roomCode } = useParams<{ roomCode: string }>()
   const router = useRouter()
-  const session = getPlayerSession(roomCode)
 
+  const [session, setSession] = useState<ReturnType<typeof getPlayerSession>>(null)
+  const [sessionReady, setSessionReady] = useState(false)
   const [phase, setPhase] = useState<Phase>('lobby')
   const [question, setQuestion] = useState<ActiveQuestion | null>(null)
   const [lastPoints, setLastPoints] = useState<number | null>(null)
@@ -32,8 +33,11 @@ export default function PlayPage() {
   const sessionIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!session) return
-    getRoomState(roomCode, session.sessionToken).then((data) => {
+    const s = getPlayerSession(roomCode)
+    setSession(s)
+    setSessionReady(true)
+    if (!s) return
+    getRoomState(roomCode, s.sessionToken).then((data) => {
       if (data.session_id) sessionIdRef.current = data.session_id
       if (data.phase === 'finished') {
         router.push(`/results/${data.session_id}`)
@@ -49,8 +53,7 @@ export default function PlayPage() {
         setPhase(data.phase)
       }
     }).catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [roomCode, router])
 
   const handleEvent = useCallback((e: GameEvent) => {
     if (e.event === 'game_started') {
@@ -71,11 +74,13 @@ export default function PlayPage() {
       setCorrectAnswer(e.payload.correct_answer)
       setPhase('reveal')
     } else if (e.event === 'game_finished') {
-      router.push(`/results/${sessionIdRef.current}`)
+      router.push(`/results/${sessionIdRef.current ?? e.payload.session_id}`)
     }
   }, [router])
 
   useGameChannel(roomCode, handleEvent)
+
+  if (!sessionReady) return null
 
   if (!session) {
     return (
@@ -112,6 +117,7 @@ export default function PlayPage() {
         <div className="flex-1 flex flex-col">
           {question.gameType === 'bible_quiz' && (
             <BibleQuiz
+              key={question.questionId}
               questionId={question.questionId}
               content={question.content as BibleQuizContent}
               sessionId={sessionIdRef.current}
@@ -123,6 +129,7 @@ export default function PlayPage() {
           )}
           {question.gameType === 'verse_scramble' && (
             <VerseScramble
+              key={question.questionId}
               questionId={question.questionId}
               content={question.content as VerseScrambleContent}
               sessionId={sessionIdRef.current}
@@ -134,6 +141,7 @@ export default function PlayPage() {
           )}
           {question.gameType === 'emoji_story' && (
             <EmojiStory
+              key={question.questionId}
               questionId={question.questionId}
               content={question.content as EmojiStoryContent}
               sessionId={sessionIdRef.current}

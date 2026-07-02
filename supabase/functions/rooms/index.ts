@@ -105,11 +105,13 @@ Deno.serve(async (req) => {
       const allPlayers = await db.select().from(players).where(eq(players.roomId, room.id))
       const shuffled = [...allPlayers].sort(() => Math.random() - 0.5)
 
-      for (let i = 0; i < shuffled.length; i++) {
-        await db.update(players)
-          .set({ teamId: createdTeams[i % team_count].id })
-          .where(eq(players.id, shuffled[i].id))
-      }
+      await Promise.all(
+        shuffled.map((player, i) =>
+          db.update(players)
+            .set({ teamId: createdTeams[i % team_count].id })
+            .where(eq(players.id, player.id))
+        )
+      )
 
       const result = createdTeams.map((t, i) => ({
         ...t,

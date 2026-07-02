@@ -13,9 +13,7 @@ export function Leaderboard({ entries, mode }: LeaderboardProps) {
       {entries.map((entry, i) => (
         <div
           key={entry.playerId ?? entry.teamId}
-          className={`flex items-center gap-3 rounded-2xl p-4 ${
-            i === 0 ? 'bg-white border border-[#E8E8E8]' : 'bg-white border border-[#E8E8E8]'
-          }`}
+          className="flex items-center gap-3 rounded-2xl p-4 bg-white border border-[#E8E8E8]"
         >
           <span className="w-8 text-center shrink-0">
             {i < 3

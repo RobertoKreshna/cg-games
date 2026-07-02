@@ -16,8 +16,12 @@ export function savePlayerSession(roomCode: string, data: PlayerSession): void {
 }
 
 export function getPlayerSession(roomCode: string): PlayerSession | null {
-  const raw = localStorage.getItem(`player:${roomCode}`)
-  return raw ? JSON.parse(raw) : null
+  try {
+    const raw = localStorage.getItem(`player:${roomCode}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
 
 export function saveHostSession(roomCode: string, data: HostSession): void {
@@ -25,8 +29,12 @@ export function saveHostSession(roomCode: string, data: HostSession): void {
 }
 
 export function getHostSession(roomCode: string): HostSession | null {
-  const raw = localStorage.getItem(`host:${roomCode}`)
-  return raw ? JSON.parse(raw) : null
+  try {
+    const raw = localStorage.getItem(`host:${roomCode}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
 }
 
 export function updateHostSession(roomCode: string, patch: Partial<HostSession>): void {

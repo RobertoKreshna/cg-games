@@ -30,12 +30,16 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
     if (answered) return
     setSelected(index)
     setAnswered(true)
-    const result = await submitAnswer(sessionId, sessionToken, {
-      question_id: questionId,
-      submitted_answer: String(index),
-      time_taken_ms: Date.now() - startRef.current,
-    })
-    onAnswered(result.points, String(index))
+    try {
+      const result = await submitAnswer(sessionId, sessionToken, {
+        question_id: questionId,
+        submitted_answer: String(index),
+        time_taken_ms: Date.now() - startRef.current,
+      })
+      onAnswered(result.points, String(index))
+    } catch {
+      onAnswered(0, String(index))
+    }
   }
 
   function handleExpire() {
@@ -45,7 +49,7 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
       question_id: questionId,
       submitted_answer: '-1',
       time_taken_ms: 15000,
-    }).then((r) => onAnswered(r.points, '-1'))
+    }).then((r) => onAnswered(r.points, '-1')).catch(() => onAnswered(0, '-1'))
   }
 
   return (

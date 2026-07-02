@@ -4,7 +4,7 @@ insert into questions (game_type, order_index, content) values
 ('bible_quiz', 0, '{"question":"Siapa yang menciptakan langit dan bumi pada mulanya?","options":["Malaikat","Allah","Musa","Nuh"],"answer_index":1,"reference":"Kejadian 1:1"}'),
 ('bible_quiz', 1, '{"question":"Dari apa Allah membuat tubuh Adam?","options":["Air","Debu tanah","Kayu","Batu"],"answer_index":1,"reference":"Kejadian 2:7"}'),
 ('bible_quiz', 2, '{"question":"Buah apa yang dimakan Adam dan Hawa di taman Eden?","options":["Anggur","Apel","Buah dari pohon pengetahuan baik dan jahat","Ara"],"answer_index":2,"reference":"Kejadian 3:6"}'),
-('bible_quiz', 3, '{"question":"Siapa anak Kain yang membunuh Abel?","options":["Kain","Set","Lamekh","Henokh"],"answer_index":0,"reference":"Kejadian 4:8"}'),
+('bible_quiz', 3, '{"question":"Siapa yang membunuh Abel?","options":["Kain","Set","Lamekh","Henokh"],"answer_index":0,"reference":"Kejadian 4:8"}'),
 ('bible_quiz', 4, '{"question":"Berapa lama hujan turun saat zaman Nuh?","options":["20 hari 20 malam","30 hari 30 malam","40 hari 40 malam","7 hari 7 malam"],"answer_index":2,"reference":"Kejadian 7:12"}'),
 ('bible_quiz', 5, '{"question":"Berapa banyak orang yang diselamatkan di dalam bahtera Nuh?","options":["4 orang","6 orang","8 orang","10 orang"],"answer_index":2,"reference":"1 Petrus 3:20"}'),
 ('bible_quiz', 6, '{"question":"Apa tanda perjanjian Allah dengan Nuh setelah air bah?","options":["Matahari","Bintang","Pelangi","Awan putih"],"answer_index":2,"reference":"Kejadian 9:13"}'),
