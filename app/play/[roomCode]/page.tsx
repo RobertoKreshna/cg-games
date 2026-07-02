@@ -124,7 +124,7 @@ export default function PlayPage() {
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
-              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase('answered') }}
+              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase((p) => p === 'reveal' ? p : 'answered') }}
             />
           )}
           {question.gameType === 'verse_scramble' && (
@@ -136,7 +136,7 @@ export default function PlayPage() {
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
-              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase('answered') }}
+              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase((p) => p === 'reveal' ? p : 'answered') }}
             />
           )}
           {question.gameType === 'emoji_story' && (
@@ -148,7 +148,7 @@ export default function PlayPage() {
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
-              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase('answered') }}
+              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase((p) => p === 'reveal' ? p : 'answered') }}
             />
           )}
         </div>
