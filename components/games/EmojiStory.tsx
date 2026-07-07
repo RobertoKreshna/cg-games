@@ -68,16 +68,16 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
       <div className="flex justify-between w-full items-center">
         <div>
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <p className="text-[#999] text-sm mt-0.5">
-            {answered ? 'Menunggu soal berikutnya...' : remaining > 0 ? `Pilih ${remaining} lagi` : 'Siap submit!'}
+          <p className="text-mist text-sm mt-0.5 font-semibold">
+            {answered ? 'Menunggu soal berikutnya...' : remaining > 0 ? `Pilih ${remaining} lagi` : 'Siap submit! 🔥'}
           </p>
         </div>
         <Timer durationMs={20000} onExpire={handleExpire} />
       </div>
 
-      <div className="bg-white border border-[#E8E8E8] rounded-2xl w-full py-5 flex flex-col items-center gap-1.5">
+      <div className="card w-full py-5 flex flex-col items-center gap-1.5">
         <p className="text-5xl tracking-widest leading-relaxed text-center">{content.emojis}</p>
-        <p className="text-[#CCC] text-xs">{content.hint}</p>
+        <p className="text-faint text-xs font-semibold">{content.hint}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -89,10 +89,10 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
               key={origIdx}
               onClick={() => toggleWord(origIdx)}
               disabled={answered || isFull}
-              className={`py-3 px-4 rounded-xl text-sm font-medium text-left border transition-all ${
+              className={`py-3 px-4 rounded-xl text-sm font-bold text-left border-2 transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[#111] text-white border-[#111]'
-                  : 'bg-white text-[#111] border-[#E8E8E8]'
+                  ? 'bg-grape border-grape text-white shadow-[0_3px_0_#55229E]'
+                  : 'bg-surface border-line'
               } ${isFull ? 'opacity-25' : ''}`}
             >
               {content.words[origIdx]}

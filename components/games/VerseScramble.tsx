@@ -65,20 +65,20 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
       <div className="flex justify-between items-center">
         <div>
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <p className="text-[#111] font-semibold text-sm mt-0.5">{content.reference}</p>
+          <p className="font-display font-medium text-base mt-0.5">{content.reference}</p>
         </div>
         <Timer durationMs={30000} onExpire={handleExpire} />
       </div>
 
-      <div className="min-h-24 bg-white border border-[#E8E8E8] rounded-2xl p-3 flex flex-wrap gap-2">
+      <div className="min-h-24 bg-ink border-2 border-dashed border-line rounded-2xl p-3 flex flex-wrap gap-2">
         {placed.length === 0 ? (
-          <p className="text-[#CCC] text-sm self-center mx-auto">Ketuk kata untuk menyusun ayat...</p>
+          <p className="text-faint text-sm font-semibold self-center mx-auto">Ketuk kata untuk menyusun ayat...</p>
         ) : (
           placed.map((wordIndex, pos) => (
             <button
               key={pos}
               onClick={() => remove(pos)}
-              className="bg-[#111] text-white px-3 py-1.5 rounded-lg font-medium text-sm active:scale-95 transition-transform"
+              className="bg-gold text-night px-3 py-1.5 rounded-lg font-bold text-sm active:scale-95 transition-transform cursor-pointer shadow-[0_2px_0_#C29500]"
             >
               {content.words[wordIndex]}
             </button>
@@ -92,7 +92,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
             key={wordIndex}
             onClick={() => tap(wordIndex)}
             disabled={answered}
-            className="bg-white border border-[#E0E0E0] text-[#111] px-3 py-2 rounded-xl text-sm font-medium active:scale-95 transition-transform disabled:opacity-30"
+            className="bg-raised border border-line px-3 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform cursor-pointer disabled:opacity-30"
           >
             {content.words[wordIndex]}
           </button>
@@ -104,7 +104,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
           Submit
         </button>
       ) : (
-        <p className="text-center text-[#CCC] text-xs animate-pulse">Menunggu soal berikutnya...</p>
+        <p className="text-center text-faint text-xs font-semibold animate-pulse">Menunggu soal berikutnya...</p>
       )}
     </div>
   )

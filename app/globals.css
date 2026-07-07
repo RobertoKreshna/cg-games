@@ -1,60 +1,106 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-dm-sans);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fredoka);
+}
+
+@theme {
+  /* Party Pop palette */
+  --color-night: #1e1b4b; /* page background */
+  --color-ink: #141038; /* inset / darker surfaces */
+  --color-surface: #2b2564; /* cards */
+  --color-raised: #363075; /* chips, hovered surfaces */
+  --color-line: rgba(255, 255, 255, 0.1);
+  --color-mist: #a5a3d6; /* secondary text */
+  --color-faint: #6e69ad; /* tertiary text */
+  --color-gold: #ffc700;
+  --color-grape: #7c3aed;
+
+  --animate-pop-in: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-float: float 5s ease-in-out infinite;
+  --animate-confetti: confetti-fall 4s linear infinite;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--tilt, 0deg)); }
+}
+
+@keyframes confetti-fall {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(110vh) rotate(720deg); }
 }
 
 body {
-  background: #F5F5F5;
-  color: #111111;
-  font-family: var(--font-dm-sans), 'DM Sans', sans-serif;
+  background-color: #1e1b4b;
+  background-image:
+    radial-gradient(60rem 40rem at 85% -10%, rgba(124, 58, 237, 0.4), transparent 60%),
+    radial-gradient(50rem 35rem at -10% 110%, rgba(225, 29, 72, 0.16), transparent 60%);
+  background-attachment: fixed;
+  color: #ffffff;
+  font-family: var(--font-nunito), 'Nunito', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 @utility card {
-  background: #FFFFFF;
-  border: 1px solid #E8E8E8;
-  border-radius: 16px;
+  background: #2b2564;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
 }
 
 @utility btn-primary {
-  background: #111111;
-  color: #FFFFFF;
-  font-weight: 600;
-  border-radius: 12px;
-  transition: opacity 0.15s ease, transform 0.12s ease;
-  &:hover { opacity: 0.85; }
-  &:active { transform: scale(0.98); }
-  &:disabled { opacity: 0.3; }
+  background: #7c3aed;
+  color: #ffffff;
+  font-weight: 800;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #55229e;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+  &:hover { background: #8b5cf6; }
+  &:active { transform: translateY(4px); box-shadow: 0 1px 0 #55229e; }
+  &:disabled { opacity: 0.35; transform: none; box-shadow: 0 5px 0 #55229e; }
 }
 
 @utility btn-secondary {
-  background: #FFFFFF;
-  color: #111111;
-  font-weight: 600;
-  border: 1px solid #D8D8D8;
-  border-radius: 12px;
-  transition: background 0.15s ease, transform 0.12s ease;
-  &:hover { background: #F5F5F5; }
-  &:active { transform: scale(0.98); }
-  &:disabled { opacity: 0.3; }
+  background: #ffc700;
+  color: #1e1b4b;
+  font-weight: 800;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #c29500;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+  &:hover { background: #ffd333; }
+  &:active { transform: translateY(4px); box-shadow: 0 1px 0 #c29500; }
+  &:disabled { opacity: 0.35; transform: none; box-shadow: 0 5px 0 #c29500; }
 }
 
 @utility field-input {
-  background: #FFFFFF;
-  border: 1px solid #E0E0E0;
-  border-radius: 10px;
-  color: #111111;
+  background: #141038;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  color: #ffffff;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  &:focus { border-color: #111111; box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.07); }
-  &::placeholder { color: #C0C0C0; }
+  &:focus { border-color: #ffc700; box-shadow: 0 0 0 4px rgba(255, 199, 0, 0.15); }
+  &::placeholder { color: #55508f; }
 }
 
 @utility tag {
   font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #AAAAAA;
+  color: #8f8cc4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -15,10 +15,10 @@ interface Props {
 }
 
 const OPTIONS = [
-  { label: 'A', base: 'bg-red-50 border-red-100', sel: 'bg-red-100 border-red-400' },
-  { label: 'B', base: 'bg-blue-50 border-blue-100', sel: 'bg-blue-100 border-blue-400' },
-  { label: 'C', base: 'bg-green-50 border-green-100', sel: 'bg-green-100 border-green-400' },
-  { label: 'D', base: 'bg-amber-50 border-amber-100', sel: 'bg-amber-100 border-amber-400' },
+  { label: 'A', shape: '▲', bg: '#E11D48', shadow: '#9F1239', text: 'text-white' },
+  { label: 'B', shape: '◆', bg: '#2563EB', shadow: '#1E3A8A', text: 'text-white' },
+  { label: 'C', shape: '●', bg: '#FFC700', shadow: '#B78F00', text: 'text-[#3B2F00]' },
+  { label: 'D', shape: '■', bg: '#16A34A', shadow: '#14532D', text: 'text-white' },
 ]
 
 export function BibleQuiz({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
@@ -57,25 +57,27 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
       <div className="flex justify-between items-start gap-4">
         <div className="flex-1">
           <p className="tag mb-2">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <h2 className="text-[#111] text-lg font-semibold leading-snug">{content.question}</h2>
+          <h2 className="font-display text-xl font-medium leading-snug">{content.question}</h2>
         </div>
         <Timer durationMs={15000} onExpire={handleExpire} />
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-3">
         {content.options.map((opt, i) => {
           const o = OPTIONS[i]
+          const dimmed = answered && selected !== i
           return (
             <button
               key={i}
               onClick={() => handleSelect(i)}
               disabled={answered}
-              className={`p-4 rounded-2xl text-left border active:scale-98 transition-all disabled:cursor-default ${
-                selected === i ? o.sel : o.base
-              }`}
+              className={`p-4 rounded-2xl text-left transition-all cursor-pointer disabled:cursor-default active:translate-y-1 ${o.text} ${
+                selected === i ? 'ring-4 ring-white' : ''
+              } ${dimmed ? 'opacity-30' : ''}`}
+              style={{ background: o.bg, boxShadow: `0 4px 0 ${o.shadow}` }}
             >
-              <span className="text-xs text-[#999] font-semibold mr-1">{o.label}.</span>
-              <span className="text-sm font-medium text-[#111] leading-snug">{opt}</span>
+              <span className="text-base mr-1.5 align-middle" aria-hidden>{o.shape}</span>
+              <span className="text-sm font-bold leading-snug">{opt}</span>
             </button>
           )
         })}
@@ -84,9 +86,9 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
       {answered && (
         <div className="flex flex-col items-center gap-1.5">
           {content.reference && (
-            <p className="text-[#999] text-xs">📖 {content.reference}</p>
+            <p className="text-mist text-xs font-semibold">📖 {content.reference}</p>
           )}
-          <p className="text-center text-[#CCC] text-xs animate-pulse">Menunggu soal berikutnya...</p>
+          <p className="text-center text-faint text-xs font-semibold animate-pulse">Menunggu soal berikutnya...</p>
         </div>
       )}
     </div>

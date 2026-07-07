@@ -1,13 +1,19 @@
-import type { Metadata } from 'next'
-import { DM_Sans } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Fredoka, Nunito } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
-const dmSans = DM_Sans({
+const fredoka = Fredoka({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  variable: '--font-fredoka',
   weight: ['400', '500', '600', '700'],
+})
+
+const nunito = Nunito({
+  subsets: ['latin'],
+  variable: '--font-nunito',
+  weight: ['400', '600', '700', '800'],
 })
 
 export const metadata: Metadata = {
@@ -15,9 +21,13 @@ export const metadata: Metadata = {
   description: 'Game seru buat connect group',
 }
 
+export const viewport: Viewport = {
+  themeColor: '#1E1B4B',
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" className={dmSans.variable}>
+    <html lang="id" className={`${fredoka.variable} ${nunito.variable}`}>
       <body className="min-h-full flex flex-col">
         {children}
         <Analytics />

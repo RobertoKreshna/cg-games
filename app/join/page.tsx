@@ -34,20 +34,20 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center p-6">
+    <main className="min-h-dvh flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <button onClick={() => router.back()} className="text-[#999] text-sm mb-8 flex items-center gap-1">
+        <button onClick={() => router.back()} className="text-mist text-sm font-bold mb-8 flex items-center gap-1 cursor-pointer">
           ← Kembali
         </button>
 
-        <h1 className="text-3xl font-bold text-[#111] tracking-tight mb-1">Gabung Room</h1>
-        <p className="text-[#999] text-sm mb-8">Masukkan kode dari host</p>
+        <h1 className="font-display text-4xl font-semibold tracking-tight mb-1">Gabung Room</h1>
+        <p className="text-mist text-sm font-semibold mb-8">Masukkan kode dari host</p>
 
         <div className="card p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="tag">Kode Room</label>
             <input
-              className="field-input p-4 text-center text-3xl font-bold tracking-[0.25em] uppercase w-full"
+              className="field-input font-display p-4 text-center text-3xl font-semibold tracking-[0.25em] uppercase w-full text-gold"
               placeholder="······"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -58,7 +58,7 @@ export default function JoinPage() {
           <div className="flex flex-col gap-1.5">
             <label className="tag">Nama Kamu</label>
             <input
-              className="field-input p-4 text-center text-base font-medium w-full"
+              className="field-input p-4 text-center text-base font-semibold w-full"
               placeholder="Nama..."
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -68,7 +68,7 @@ export default function JoinPage() {
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
+            <p className="text-rose-300 text-sm font-semibold text-center">{error}</p>
           )}
 
           <button
@@ -76,7 +76,7 @@ export default function JoinPage() {
             disabled={loading || !code.trim() || !name.trim()}
             className="btn-primary py-4 text-base w-full"
           >
-            {loading ? 'Joining...' : 'Masuk'}
+            {loading ? 'Joining...' : 'Masuk 🚀'}
           </button>
         </div>
       </div>

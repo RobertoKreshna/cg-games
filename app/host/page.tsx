@@ -151,14 +151,14 @@ export default function HostPage() {
 
   if (phase === 'configure') {
     return (
-      <main className="min-h-screen bg-[#F5F5F5] flex flex-col p-6 items-center">
+      <main className="min-h-dvh flex flex-col p-6 items-center">
         <div className="w-full max-w-sm">
-        <button onClick={() => router.back()} className="text-[#999] text-sm mb-8 flex items-center gap-1">
+        <button onClick={() => router.back()} className="text-mist text-sm font-bold mb-8 flex items-center gap-1 cursor-pointer">
           ← Kembali
         </button>
 
-        <h1 className="text-3xl font-bold text-[#111] tracking-tight mb-1">Buat Room</h1>
-        <p className="text-[#999] text-sm mb-8">Pilih game dan mode bermain</p>
+        <h1 className="font-display text-4xl font-semibold tracking-tight mb-1">Buat Room</h1>
+        <p className="text-mist text-sm font-semibold mb-8">Pilih game dan mode bermain</p>
 
         <div className="flex flex-col gap-6">
           <div>
@@ -168,21 +168,21 @@ export default function HostPage() {
                 <button
                   key={g.type}
                   onClick={() => setGameType(g.type)}
-                  className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-all border ${
+                  className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-all border-2 cursor-pointer ${
                     gameType === g.type
-                      ? 'bg-white border-[#111]'
-                      : 'bg-white border-[#E8E8E8]'
+                      ? 'bg-raised border-gold'
+                      : 'bg-surface border-line'
                   }`}
                 >
-                  <span className="text-xl">{g.emoji}</span>
+                  <span className="text-2xl">{g.emoji}</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-[#111] text-sm">{g.label}</p>
-                    <p className="text-[#999] text-xs mt-0.5">{g.desc}</p>
+                    <p className="font-bold text-sm">{g.label}</p>
+                    <p className="text-mist text-xs mt-0.5 font-semibold">{g.desc}</p>
                   </div>
                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    gameType === g.type ? 'border-[#111] bg-[#111]' : 'border-[#D0D0D0]'
+                    gameType === g.type ? 'border-gold bg-gold' : 'border-faint'
                   }`}>
-                    {gameType === g.type && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    {gameType === g.type && <div className="w-1.5 h-1.5 rounded-full bg-night" />}
                   </div>
                 </button>
               ))}
@@ -196,8 +196,8 @@ export default function HostPage() {
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    mode === m ? 'bg-[#111] text-white' : 'text-[#888]'
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                    mode === m ? 'bg-grape text-white' : 'text-mist'
                   }`}
                 >
                   {m === 'individual' ? '👤 Individual' : '👥 Tim'}
@@ -213,8 +213,8 @@ export default function HostPage() {
                 <button
                   key={n}
                   onClick={() => setQuestionCount(n)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    questionCount === n ? 'bg-[#111] text-white' : 'text-[#888]'
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                    questionCount === n ? 'bg-grape text-white' : 'text-mist'
                   }`}
                 >
                   {n}
@@ -223,9 +223,9 @@ export default function HostPage() {
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          {error && <p className="text-rose-300 text-sm font-semibold text-center">{error}</p>}
           <button onClick={handleCreate} disabled={loading} className="btn-primary py-4 text-base w-full">
-            {loading ? 'Membuat...' : 'Buat Room'}
+            {loading ? 'Membuat...' : 'Buat Room 🎉'}
           </button>
         </div>
         </div>
@@ -235,30 +235,33 @@ export default function HostPage() {
 
   if (phase === 'lobby') {
     return (
-      <main className="min-h-screen bg-[#F5F5F5] flex flex-col p-6 items-center">
+      <main className="min-h-dvh flex flex-col p-6 items-center">
         <div className="w-full max-w-sm flex flex-col flex-1">
-        <div className="mb-8">
-          <p className="tag mb-1">Kode Room</p>
-          <h2 className="text-5xl font-bold text-[#111] tracking-[0.18em]">{roomCode}</h2>
-          <p className="text-[#999] text-xs mt-2">
+        <div className="mb-8 text-center">
+          <p className="tag mb-2">Kode Room</p>
+          <h2 className="font-display text-6xl font-semibold text-gold tracking-[0.18em] drop-shadow-[0_4px_0_rgba(0,0,0,0.25)]">
+            {roomCode}
+          </h2>
+          <p className="text-mist text-xs mt-3 font-bold">
             {GAME_OPTIONS.find((g) => g.type === gameType)?.label} · {mode === 'individual' ? 'Individual' : 'Tim'}
           </p>
         </div>
 
         <div className="card p-4 mb-4 flex-1 max-h-64 overflow-y-auto">
           <p className="tag mb-3">{players.length} player bergabung</p>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
             {players.length === 0 && (
-              <p className="text-[#C0C0C0] text-sm text-center py-4">Menunggu player...</p>
+              <p className="text-faint text-sm text-center py-4 w-full animate-pulse">Menunggu player...</p>
             )}
             {players.map((p) => (
-              <div key={p.id} className="flex items-center gap-2.5">
-                {p.teamColor && (
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />
-                )}
-                <span className="text-[#111] text-sm font-medium">{p.name}</span>
-                {p.teamName && <span className="text-[#AAA] text-xs ml-auto">{p.teamName}</span>}
-              </div>
+              <span key={p.id} className="animate-pop-in bg-raised border border-line rounded-full pl-2.5 pr-3 py-1.5 flex items-center gap-2 text-sm font-bold">
+                {p.teamColor
+                  ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />
+                  : <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-gold" />
+                }
+                {p.name}
+                {p.teamName && <span className="text-faint text-[10px] uppercase tracking-wider">{p.teamName}</span>}
+              </span>
             ))}
           </div>
         </div>
@@ -269,9 +272,9 @@ export default function HostPage() {
               <select
                 value={teamCount}
                 onChange={(e) => setTeamCount(Number(e.target.value))}
-                className="bg-transparent text-[#111] text-sm font-medium outline-none"
+                className="bg-transparent text-sm font-bold outline-none"
               >
-                {[2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} tim</option>)}
+                {[2, 3, 4, 5].map((n) => <option key={n} value={n} className="bg-night">{n} tim</option>)}
               </select>
             </div>
             <button
@@ -284,7 +287,7 @@ export default function HostPage() {
           </div>
         )}
 
-        {error && <p className="text-red-500 text-xs text-center">{error}</p>}
+        {error && <p className="text-rose-300 text-xs font-semibold text-center">{error}</p>}
         <button
           onClick={handleStart}
           disabled={loading || players.length === 0 || (mode === 'team' && !teamsAssigned)}
@@ -293,7 +296,7 @@ export default function HostPage() {
           {loading ? '...' : '▶ Mulai Game'}
         </button>
         {mode === 'team' && !teamsAssigned && players.length > 0 && (
-          <p className="text-[#999] text-xs text-center mt-2">Acak tim dulu sebelum mulai</p>
+          <p className="text-mist text-xs font-semibold text-center mt-2">Acak tim dulu sebelum mulai</p>
         )}
         </div>
       </main>
@@ -302,35 +305,37 @@ export default function HostPage() {
 
   if (phase === 'playing') {
     return (
-      <main className="min-h-screen bg-[#F5F5F5] flex flex-col p-6 items-center">
+      <main className="min-h-dvh flex flex-col p-6 items-center">
         <div className="w-full max-w-sm flex flex-col flex-1">
         <div className="flex justify-between items-center mb-8">
           <div>
             <p className="tag">{roomCode}</p>
-            <p className="text-[#111] font-semibold text-sm mt-0.5">
+            <p className="font-bold text-sm mt-0.5">
               {GAME_OPTIONS.find((g) => g.type === gameType)?.label}
             </p>
           </div>
           {totalQ > 0 && (
-            <span className="text-[#999] text-sm">{currentQ} / {totalQ}</span>
+            <span className="bg-raised border border-line rounded-full px-3 py-1 text-gold text-sm font-bold tabular-nums">
+              {currentQ} / {totalQ}
+            </span>
           )}
         </div>
 
         <div className="flex-1 flex flex-col gap-3">
           {questionStatus === 'idle' && (
             <div className="card p-8 flex flex-col items-center gap-2 text-center">
-              <p className="text-[#999] text-sm">Tekan tombol untuk mulai soal pertama</p>
+              <p className="text-mist text-sm font-semibold">Tekan tombol untuk mulai soal pertama</p>
             </div>
           )}
           {(questionStatus === 'showing' || questionStatus === 'reveal') && (
             <div className="card p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <p className="text-[#111] font-semibold text-sm">
+                <p className="font-bold text-sm">
                   {questionStatus === 'showing' ? (
                     <span className="animate-pulse">⏱ Menunggu jawaban</span>
                   ) : '✅ Semua sudah menjawab'}
                 </p>
-                <span className="text-[#999] text-xs font-medium">
+                <span className="text-mist text-xs font-bold tabular-nums">
                   {questionStatus === 'reveal' ? players.length : answeredIds.size} / {players.length}
                 </span>
               </div>
@@ -339,13 +344,13 @@ export default function HostPage() {
                   const done = questionStatus === 'reveal' || answeredIds.has(p.id)
                   return (
                     <div key={p.id} className="flex items-center gap-2.5">
-                      <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center transition-colors ${done ? 'bg-[#22C55E]' : 'bg-[#E8E8E8]'}`}>
+                      <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center transition-colors ${done ? 'bg-[#22C55E]' : 'bg-white/10'}`}>
                         {done && <span className="text-white text-[9px] font-bold leading-none">✓</span>}
                       </div>
-                      <span className={`text-sm font-medium transition-colors ${done ? 'text-[#111]' : 'text-[#BBB]'}`}>
+                      <span className={`text-sm font-semibold transition-colors ${done ? 'text-white' : 'text-faint'}`}>
                         {p.name}
                       </span>
-                      {p.teamName && <span className="text-[#AAA] text-xs ml-auto">{p.teamName}</span>}
+                      {p.teamName && <span className="text-faint text-xs ml-auto">{p.teamName}</span>}
                     </div>
                   )
                 })}
@@ -354,7 +359,7 @@ export default function HostPage() {
           )}
         </div>
 
-        {error && <p className="text-red-500 text-xs text-center">{error}</p>}
+        {error && <p className="text-rose-300 text-xs font-semibold text-center">{error}</p>}
         <button
           onClick={handleNext}
           disabled={loading || questionStatus === 'showing'}
@@ -368,15 +373,15 @@ export default function HostPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center p-6">
+    <main className="min-h-dvh flex flex-col items-center justify-center p-6">
       <div className="flex flex-col items-center gap-2 mb-10 text-center">
-        <div className="text-4xl mb-2">🏆</div>
-        <h1 className="text-3xl font-bold text-[#111] tracking-tight">Game Selesai!</h1>
-        <p className="text-[#999] text-sm">Semua soal sudah selesai</p>
+        <div className="text-6xl mb-2 animate-pop-in">🏆</div>
+        <h1 className="font-display text-4xl font-semibold tracking-tight">Game Selesai!</h1>
+        <p className="text-mist text-sm font-semibold">Semua soal sudah selesai</p>
       </div>
-      <div className="flex flex-col gap-3 w-full max-w-xs">
+      <div className="flex flex-col gap-4 w-full max-w-xs">
         <button onClick={() => router.push(`/results/${sessionId}`)} className="btn-primary py-4 text-base w-full">
-          Lihat Leaderboard
+          Lihat Leaderboard 🏅
         </button>
         <button onClick={() => { clearHostSession(roomCode); router.push('/') }} className="btn-secondary py-3 text-base w-full">
           Kembali ke Home

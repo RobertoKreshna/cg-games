@@ -84,10 +84,10 @@ export default function PlayPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-6">
+      <main className="min-h-dvh flex items-center justify-center p-6">
         <div className="card p-8 flex flex-col items-center gap-4 text-center max-w-xs w-full">
-          <p className="text-[#999] text-sm">Session tidak ditemukan.</p>
-          <a href="/join" className="text-[#111] text-sm font-semibold underline underline-offset-4">
+          <p className="text-mist text-sm font-semibold">Session tidak ditemukan.</p>
+          <a href="/join" className="text-gold text-sm font-bold underline underline-offset-4">
             Join ulang
           </a>
         </div>
@@ -96,19 +96,19 @@ export default function PlayPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F5F5F5] flex flex-col">
+    <main className="min-h-dvh flex flex-col">
       {phase === 'lobby' && (
         <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6">
-          <div className="card w-32 h-32 flex items-center justify-center text-4xl animate-pulse">
-            ⏳
+          <div className="card w-32 h-32 flex items-center justify-center text-5xl">
+            <span className="animate-float inline-block">⏳</span>
           </div>
           <div className="text-center">
-            <p className="text-[#111] font-semibold">Menunggu host...</p>
-            <p className="text-[#999] text-sm mt-1">Siap-siap ya!</p>
+            <p className="font-display text-xl font-semibold">Menunggu host...</p>
+            <p className="text-mist text-sm mt-1 font-semibold">Siap-siap ya! 🔥</p>
           </div>
           <div className="card px-5 py-2.5 flex items-center gap-2">
             <span className="tag">Room</span>
-            <span className="text-[#111] font-bold tracking-widest text-lg">{roomCode}</span>
+            <span className="font-display text-gold font-semibold tracking-widest text-xl">{roomCode}</span>
           </div>
         </div>
       )}
@@ -158,17 +158,17 @@ export default function PlayPage() {
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
           {lastPoints !== null ? (
             <>
-              <div className="text-6xl">
+              <div className="text-6xl animate-pop-in">
                 {lastPoints >= 800 ? '🎉' : lastPoints >= 500 ? '🔥' : lastPoints > 0 ? '👍' : '😅'}
               </div>
-              <div className="card px-10 py-6 flex flex-col items-center gap-1 text-center">
-                <span className="text-4xl font-bold text-[#111]">+{lastPoints}</span>
-                <span className="text-[#999] text-xs uppercase tracking-wider">poin</span>
+              <div className="card px-10 py-6 flex flex-col items-center gap-1 text-center animate-pop-in">
+                <span className="font-display text-5xl font-semibold text-gold tabular-nums">+{lastPoints}</span>
+                <span className="tag">poin</span>
               </div>
             </>
           ) : (
             <div className="card p-8 flex flex-col items-center gap-2 text-center">
-              <p className="text-[#999] text-sm">Menunggu soal berikutnya...</p>
+              <p className="text-mist text-sm font-semibold">Menunggu soal berikutnya...</p>
             </div>
           )}
 
@@ -183,15 +183,15 @@ export default function PlayPage() {
                     const isCorrect = i === correct
                     const isWrong = submitted >= 0 && i === submitted && i !== correct
                     return (
-                      <div key={i} className={`px-3 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2 ${
-                        isCorrect ? 'bg-green-50 border-green-400 text-green-800'
-                        : isWrong ? 'bg-red-50 border-red-300 text-red-700'
-                        : 'bg-[#F5F5F5] border-[#E8E8E8] text-[#BBB]'
+                      <div key={i} className={`px-3 py-2.5 rounded-xl border text-sm font-semibold flex items-center gap-2 ${
+                        isCorrect ? 'bg-emerald-400/15 border-emerald-400/60 text-emerald-200'
+                        : isWrong ? 'bg-rose-400/15 border-rose-400/60 text-rose-200'
+                        : 'bg-white/5 border-line text-faint'
                       }`}>
                         <span className="text-xs font-bold w-4 shrink-0">{['A','B','C','D'][i]}</span>
                         <span className="flex-1">{opt}</span>
-                        {isCorrect && <span className="text-green-600 text-xs">✓</span>}
-                        {isWrong && <span className="text-red-500 text-xs">✗</span>}
+                        {isCorrect && <span className="text-emerald-300 text-xs">✓</span>}
+                        {isWrong && <span className="text-rose-300 text-xs">✗</span>}
                       </div>
                     )
                   })}
@@ -210,8 +210,8 @@ export default function PlayPage() {
                       <p className="tag mb-1.5">Jawabanmu</p>
                       <div className="flex flex-wrap gap-1.5">
                         {submitted.map((wi, pos) => (
-                          <span key={pos} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                            correct[pos] === wi ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                          <span key={pos} className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                            correct[pos] === wi ? 'bg-emerald-400/20 text-emerald-200' : 'bg-rose-400/20 text-rose-200'
                           }`}>{c.words[wi]}</span>
                         ))}
                       </div>
@@ -221,7 +221,7 @@ export default function PlayPage() {
                     <p className="tag mb-1.5">Urutan Benar</p>
                     <div className="flex flex-wrap gap-1.5">
                       {correct.map((wi, pos) => (
-                        <span key={pos} className="bg-green-100 text-green-700 px-2.5 py-1 rounded-lg text-xs font-medium">
+                        <span key={pos} className="bg-emerald-400/20 text-emerald-200 px-2.5 py-1 rounded-lg text-xs font-bold">
                           {c.words[wi]}
                         </span>
                       ))}
@@ -240,12 +240,12 @@ export default function PlayPage() {
                   {c.words.map((word, i) => {
                     const isSelected = submitted.includes(i)
                     const isCorrect = correct.includes(i)
-                    const cls = isSelected && isCorrect ? 'bg-green-100 text-green-700 border-green-300'
-                      : isSelected && !isCorrect ? 'bg-red-100 text-red-600 border-red-300'
-                      : !isSelected && isCorrect ? 'bg-white text-green-600 border-green-300'
-                      : 'bg-[#F5F5F5] text-[#CCC] border-[#E8E8E8]'
+                    const cls = isSelected && isCorrect ? 'bg-emerald-400/15 text-emerald-200 border-emerald-400/60'
+                      : isSelected && !isCorrect ? 'bg-rose-400/15 text-rose-200 border-rose-400/60'
+                      : !isSelected && isCorrect ? 'bg-white/5 text-emerald-300 border-emerald-400/60'
+                      : 'bg-white/5 text-faint border-line'
                     return (
-                      <div key={i} className={`py-2 px-3 rounded-xl text-xs font-medium border flex items-center justify-between ${cls}`}>
+                      <div key={i} className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-between ${cls}`}>
                         <span>{word}</span>
                         {isSelected && isCorrect && <span>✓</span>}
                         {isSelected && !isCorrect && <span>✗</span>}
@@ -260,7 +260,7 @@ export default function PlayPage() {
             return null
           })()}
 
-          <p className="text-[#CCC] text-xs animate-pulse">Menunggu host...</p>
+          <p className="text-faint text-xs font-semibold animate-pulse">Menunggu host...</p>
         </div>
       )}
     </main>
