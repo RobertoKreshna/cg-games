@@ -104,7 +104,7 @@ export default function PlayPage() {
           </div>
           <div className="text-center">
             <p className="font-display text-xl font-semibold">Menunggu host...</p>
-            <p className="text-mist text-sm mt-1 font-semibold">Siap-siap ya! 🔥</p>
+            <p className="text-mist text-sm mt-1 font-semibold">Game segera dimulai</p>
           </div>
           <div className="card px-5 py-2.5 flex items-center gap-2">
             <span className="tag">Room</span>

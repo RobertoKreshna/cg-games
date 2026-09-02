@@ -18,7 +18,7 @@ const nunito = Nunito({
 
 export const metadata: Metadata = {
   title: 'CG Games',
-  description: 'Game seru buat connect group',
+  description: 'Game kuis multiplayer untuk connect group',
 }
 
 export const viewport: Viewport = {

@@ -377,7 +377,6 @@ export default function HostPage() {
       <div className="flex flex-col items-center gap-2 mb-10 text-center">
         <div className="text-6xl mb-2 animate-pop-in">🏆</div>
         <h1 className="font-display text-4xl font-semibold tracking-tight">Game Selesai!</h1>
-        <p className="text-mist text-sm font-semibold">Semua soal sudah selesai</p>
       </div>
       <div className="flex flex-col gap-4 w-full max-w-xs">
         <button onClick={() => router.push(`/results/${sessionId}`)} className="btn-primary py-4 text-base w-full">

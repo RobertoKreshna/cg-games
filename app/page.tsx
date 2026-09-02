@@ -43,10 +43,9 @@ export default function Home() {
           <span style={{ color: '#FFC700' }}>●</span>
           <span style={{ color: '#4ADE80' }}>■</span>
         </div>
-        <h1 className="font-display text-6xl font-semibold tracking-tight leading-none mb-3">
+        <h1 className="font-display text-6xl font-semibold tracking-tight leading-none">
           CG <span className="text-gold">Games</span>
         </h1>
-        <p className="text-mist text-base font-semibold">Game seru buat connect group 🎉</p>
       </div>
 
       <div className="flex flex-col gap-4 w-full max-w-xs relative">
