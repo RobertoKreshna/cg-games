@@ -14,6 +14,7 @@ const GAMES = [
   { emoji: '📖', label: 'Bible Quiz' },
   { emoji: '📝', label: 'Verse Scramble' },
   { emoji: '🎭', label: 'Emoji Story' },
+  { emoji: '🧩', label: 'Memory Ayat' },
 ]
 
 export default function Home() {
@@ -57,9 +58,9 @@ export default function Home() {
         </button>
       </div>
 
-      <div className="flex gap-2 mt-10 relative">
+      <div className="flex flex-wrap justify-center gap-2 mt-10 relative max-w-sm">
         {GAMES.map((g) => (
-          <span key={g.label} className="bg-white/5 border border-line rounded-full px-3 py-1.5 text-xs font-bold text-mist">
+          <span key={g.label} className="bg-white/5 border border-line rounded-full px-3 py-1.5 text-xs font-bold text-mist whitespace-nowrap">
             {g.emoji} {g.label}
           </span>
         ))}
