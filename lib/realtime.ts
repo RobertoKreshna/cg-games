@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import type { BibleQuizContent, EmojiStoryContent, GameType, Standings, VerseScrambleContent } from '@/types/game'
+import type { MemoryBoard } from '@/lib/memory-rules'
 
 export type GameEvent =
   | { event: 'player_joined'; payload: { name: string; player_id: string } }
   | { event: 'teams_assigned'; payload: { teams: Array<{ id: string; name: string; color: string; members: Array<{ id: string; name: string }> }> } }
   | { event: 'game_started'; payload: { session_id: string } }
-  | { event: 'question_show'; payload: { session_id: string; question_index: number; question_id: string; game_type: GameType; content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent; total_questions: number } }
+  | { event: 'question_show'; payload: { session_id: string; question_index: number; question_id: string; game_type: GameType; content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent | MemoryBoard; total_questions: number } }
   | { event: 'player_answered'; payload: { player_id: string; name: string } }
   | { event: 'question_reveal'; payload: { question_id: string; correct_answer: unknown; standings?: Standings | null } }
   | { event: 'game_finished'; payload: { session_id: string } }

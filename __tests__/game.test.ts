@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   publicContent, correctAnswerOf, scoreAnswer, effectiveTimeMs, isPastDeadline, shuffle,
   generateRoomCode, TIMER_MS, LATENCY_ALLOWANCE_MS, DEADLINE_GRACE_MS,
+  timerMsOf, maxAnswerLength, GAME_TYPES, MAX_ANSWER_LENGTH, MAX_MEMORY_ANSWER_LENGTH,
 } from '@/lib/scoring'
 
 const quiz = { question: 'q', options: ['a', 'b', 'c', 'd'], answer_index: 2, reference: 'x' }
@@ -95,5 +96,33 @@ describe('shuffle', () => {
 describe('generateRoomCode', () => {
   it('is 6 unambiguous characters', () => {
     for (let i = 0; i < 200; i++) expect(generateRoomCode()).toMatch(/^[A-HJ-NP-Z2-9]{6}$/)
+  })
+})
+
+describe('memory_match support in the shared rules', () => {
+  it('is a known game type with a fallback timer', () => {
+    expect(GAME_TYPES).toContain('memory_match')
+    expect(TIMER_MS.memory_match).toBe(220_000)
+  })
+  it('timerMsOf prefers the timer stored in the content, else the per-game default', () => {
+    expect(timerMsOf('memory_match', { timerMs: 80_000 })).toBe(80_000)
+    expect(timerMsOf('memory_match', {})).toBe(TIMER_MS.memory_match)
+    expect(timerMsOf('bible_quiz', { question: 'q' })).toBe(TIMER_MS.bible_quiz)
+    expect(timerMsOf('bible_quiz', null)).toBe(TIMER_MS.bible_quiz)
+    expect(timerMsOf('memory_match', { timerMs: 0 })).toBe(TIMER_MS.memory_match)
+    expect(timerMsOf('memory_match', { timerMs: '9' })).toBe(TIMER_MS.memory_match)
+  })
+  it('correctAnswerOf returns the right option per pair', () => {
+    const content = { quiz: [{ pair: 0, options: ['a', 'b', 'c', 'd'], answer: 2 }, { pair: 1, options: ['a', 'b', 'c', 'd'], answer: 0 }] }
+    expect(correctAnswerOf('memory_match', content)).toEqual([2, 0])
+    expect(correctAnswerOf('memory_match', {})).toEqual([])
+  })
+  it('allows longer answers only for memory_match', () => {
+    expect(maxAnswerLength('bible_quiz')).toBe(MAX_ANSWER_LENGTH)
+    expect(maxAnswerLength('memory_match')).toBe(MAX_MEMORY_ANSWER_LENGTH)
+    expect(MAX_MEMORY_ANSWER_LENGTH).toBeGreaterThan(MAX_ANSWER_LENGTH)
+  })
+  it('scoreAnswer refuses memory (it is scored by scoreMemoryAnswer)', () => {
+    expect(scoreAnswer('memory_match', {}, '[]', 0)).toEqual({ ok: false, error: 'invalid answer format' })
   })
 })

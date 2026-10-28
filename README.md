@@ -7,6 +7,7 @@ Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dim
 - **Bible Quiz** — Kahoot-style multiple choice dengan timer 15 detik
 - **Verse Scramble** — Susun kata-kata ayat Alkitab yang diacak
 - **Emoji Story** — Tebak kisah/lagu rohani dari deretan emoji
+- **Memory Ayat** — Cocokkan kartu referensi ayat; tiap pasangan yang ketemu membuka pilihan ganda "apa bunyinya?"
 
 ## Fitur
 
@@ -14,6 +15,7 @@ Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dim
 - Host mengontrol jalannya game (soal berikutnya, tampilkan jawaban lebih awal)
 - Host bisa mengeluarkan pemain (ketuk namanya), menutup room sebelum mulai, atau mengakhiri game di tengah jalan; pemain yang pergi tidak lagi menahan ronde
 - Layar host menampilkan soal, jawaban benar, dan referensi ayat setelah reveal (bahan diskusi); daftar pemain ringkas dan tombol aksi selalu terlihat, juga untuk 30 pemain
+- Memory Ayat: host mengatur jumlah kartu (12–40) dan berapa lama kartu salah tertutup; papan sama untuk semua pemain, skor dihitung server
 - Mode Individual atau Tim (tim diacak otomatis); skor tim = rata-rata poin per anggota
 - Klasemen sementara tampil di setiap reveal, leaderboard di akhir
 - Hingga 30 player per room, nama harus unik di dalam room
@@ -75,6 +77,16 @@ Dengan Supabase CLI (sudah login, `supabase login`):
 ```bash
 supabase db push --db-url "$SUPABASE_DB_URL"      # menjalankan semua migration di supabase/migrations
 psql "$SUPABASE_DB_URL" -f supabase/seed.sql      # 250 soal
+```
+
+Migrasi `20261028000000_memory_match_enum.sql` dan `20261028000001_memory_match.sql` menambah game Memory Ayat
+(tipe game baru, pengaturan kartu per room, dan pembersihan papan lama). Jalankan `supabase db push` **sebelum**
+men-deploy function.
+
+Tambahan 100 ayat hafalan (untuk Verse Scramble dan Memory Ayat), aditif dan aman diulang:
+
+```bash
+psql "$SUPABASE_DB_URL" -f supabase/seed_verses_hafalan.sql
 ```
 
 Lalu jadwalkan pembersihan room lama (di SQL Editor, sekali saja). Room tidak pernah dihapus oleh

@@ -3,7 +3,7 @@ import {
   boolean, timestamp, jsonb, unique,
 } from 'npm:drizzle-orm/pg-core'
 
-export const gameTypeEnum = pgEnum('game_type', ['bible_quiz', 'verse_scramble', 'emoji_story'])
+export const gameTypeEnum = pgEnum('game_type', ['bible_quiz', 'verse_scramble', 'emoji_story', 'memory_match'])
 export const roomModeEnum = pgEnum('room_mode', ['individual', 'team'])
 export const roomStatusEnum = pgEnum('room_status', ['lobby', 'playing', 'finished'])
 export const sessionStatusEnum = pgEnum('session_status', ['waiting', 'question', 'reveal', 'finished'])
@@ -14,6 +14,8 @@ export const rooms = pgTable('rooms', {
   gameType: gameTypeEnum('game_type').notNull(),
   mode: roomModeEnum('mode').notNull().default('individual'),
   questionCount: integer('question_count').notNull().default(10),
+  memoryCards: integer('memory_cards').notNull().default(20),
+  memoryDelayMs: integer('memory_delay_ms').notNull().default(1000),
   status: roomStatusEnum('status').notNull().default('lobby'),
   hostToken: varchar('host_token', { length: 64 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -40,6 +42,7 @@ export const questions = pgTable('questions', {
   gameType: gameTypeEnum('game_type').notNull(),
   orderIndex: integer('order_index').notNull(),
   content: jsonb('content').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const gameSessions = pgTable('game_sessions', {

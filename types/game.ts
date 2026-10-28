@@ -1,4 +1,4 @@
-export type GameType = 'bible_quiz' | 'verse_scramble' | 'emoji_story'
+export type GameType = 'bible_quiz' | 'verse_scramble' | 'emoji_story' | 'memory_match'
 export type RoomMode = 'individual' | 'team'
 
 export interface BibleQuizContent {
@@ -56,3 +56,6 @@ export interface PublicQuestion {
   gameType: GameType
   content: Record<string, unknown>
 }
+
+export type { MemoryCard, MemoryQuiz, MemoryBoard, MemoryResult } from '@/lib/memory-rules'
+export type { MemoryBoard as MemoryMatchContent } from '@/lib/memory-rules'

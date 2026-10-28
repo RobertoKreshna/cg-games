@@ -54,3 +54,41 @@ describe('HostQuestionCard', () => {
     expect(true).toBe(true)
   })
 })
+
+const memory = {
+  gameType: 'memory_match' as const,
+  content: {
+    cols: 3, hideMs: 1000, timerMs: 80_000,
+    cards: [
+      { id: 0, pair: 0, text: 'Yohanes 3:16' }, { id: 1, pair: 1, text: 'Mazmur 23:1' },
+      { id: 2, pair: 0, text: 'Yohanes 3:16' }, { id: 3, pair: 1, text: 'Mazmur 23:1' },
+    ],
+    quiz: [
+      { pair: 0, options: ['Karena begitu besar kasih Allah', 'b', 'c', 'd'], answer: 0 },
+      { pair: 1, options: ['a', 'TUHAN adalah gembalaku', 'c', 'd'], answer: 1 },
+    ],
+  },
+}
+
+describe('HostQuestionCard: memory match', () => {
+  it('summarises the board before the reveal without showing verses', () => {
+    render(<HostQuestionCard question={memory} correctAnswer={null} revealed={false} />)
+    expect(screen.getByText(/Memory Ayat/)).toBeTruthy()
+    expect(screen.getByText(/2 pasang/)).toBeTruthy()
+    expect(screen.getByText(/4 kartu/)).toBeTruthy()
+    expect(screen.queryByText('TUHAN adalah gembalaku')).toBeNull()
+  })
+
+  it('lists every verse with its text after the reveal', () => {
+    render(<HostQuestionCard question={memory} correctAnswer={[0, 1]} revealed />)
+    expect(screen.getByText('Yohanes 3:16')).toBeTruthy()
+    expect(screen.getByText('Karena begitu besar kasih Allah')).toBeTruthy()
+    expect(screen.getByText('Mazmur 23:1')).toBeTruthy()
+    expect(screen.getByText('TUHAN adalah gembalaku')).toBeTruthy()
+  })
+
+  it('tolerates a board with no data', () => {
+    render(<HostQuestionCard question={{ gameType: 'memory_match', content: {} }} correctAnswer={null} revealed />)
+    expect(screen.getByText(/Memory Ayat/)).toBeTruthy()
+  })
+})

@@ -1,5 +1,6 @@
 // Player-side game state and how the server's view of the room is merged into it.
 import type { BibleQuizContent, EmojiStoryContent, GameType, Standings, TeamInfo, VerseScrambleContent } from '@/types/game'
+import type { MemoryBoard } from '@/lib/memory-rules'
 
 export type Phase = 'lobby' | 'question' | 'answered' | 'reveal'
 
@@ -14,7 +15,7 @@ export interface LobbyPlayer {
 export interface ActiveQuestion {
   questionId: string
   gameType: GameType
-  content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent
+  content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent | MemoryBoard
   questionIndex: number
   totalQuestions: number
   /** Time already used when this question was loaded (refresh mid-question). */

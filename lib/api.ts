@@ -31,11 +31,21 @@ async function call(path: string, { retries = 0, ...options }: CallOptions = {})
   }
 }
 
-export function createRoom(gameType: string, mode: string, questionCount: number) {
+export interface MemoryConfig {
+  cards: number
+  delayMs: number
+}
+
+export function createRoom(gameType: string, mode: string, questionCount: number, memory?: MemoryConfig) {
   return call('/rooms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ game_type: gameType, mode, question_count: questionCount }),
+    body: JSON.stringify({
+      game_type: gameType,
+      mode,
+      question_count: questionCount,
+      ...(memory ? { memory_cards: memory.cards, memory_delay_ms: memory.delayMs } : {}),
+    }),
   })
 }
 

@@ -10,9 +10,12 @@ import { ConnectionBanner } from '@/components/shared/ConnectionBanner'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
 import { VerseScramble } from '@/components/games/VerseScramble'
 import { EmojiStory } from '@/components/games/EmojiStory'
+import { MemoryMatch } from '@/components/games/MemoryMatch'
+import { MemoryRecap } from '@/components/shared/MemoryRecap'
 import { applyServerState, INITIAL, type GameState, type ServerState } from '@/lib/play-state'
 import { StandingsCard } from '@/components/shared/Standings'
 import type { BibleQuizContent, EmojiStoryContent, VerseScrambleContent } from '@/types/game'
+import type { MemoryBoard } from '@/lib/memory-rules'
 
 const subscribeNoop = () => () => {}
 
@@ -217,6 +220,19 @@ export default function PlayPage() {
               onAnswered={handleAnswered}
             />
           )}
+          {question.gameType === 'memory_match' && (
+            <MemoryMatch
+              key={question.questionId}
+              questionId={question.questionId}
+              content={question.content as MemoryBoard}
+              sessionId={sessionId}
+              sessionToken={session.sessionToken}
+              questionIndex={question.questionIndex}
+              totalQuestions={question.totalQuestions}
+              elapsedMs={question.elapsedMs}
+              onAnswered={handleAnswered}
+            />
+          )}
         </div>
       )}
 
@@ -331,6 +347,10 @@ export default function PlayPage() {
                   })}
                 </div>
               )
+            }
+
+            if (question.gameType === 'memory_match') {
+              return <MemoryRecap board={question.content as MemoryBoard} submitted={submittedAnswer} />
             }
 
             return null

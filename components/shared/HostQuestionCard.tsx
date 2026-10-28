@@ -12,6 +12,8 @@ const LETTERS = ['A', 'B', 'C', 'D']
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
 const numbers = (v: unknown): number[] => (Array.isArray(v) ? v.filter((x): x is number => typeof x === 'number') : [])
+const objects = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === 'object' && x !== null) : []
 
 /** What the host sees about the current question, so they can read it out and discuss the answer. */
 export function HostQuestionCard({ question, correctAnswer, revealed }: HostQuestionCardProps) {
@@ -56,6 +58,34 @@ export function HostQuestionCard({ question, correctAnswer, revealed }: HostQues
         {revealed && verse
           ? <p className="text-sm font-semibold leading-relaxed text-emerald-200">{verse}</p>
           : <p className="text-mist text-xs font-semibold">{words.length} kata diacak</p>}
+      </section>
+    )
+  }
+
+  if (gameType === 'memory_match') {
+    const cards = objects(content.cards)
+    const quiz = objects(content.quiz)
+    return (
+      <section className="card p-4 flex flex-col gap-2" aria-label="Soal saat ini">
+        <p className="tag">Memory Ayat</p>
+        <h2 className="font-display text-lg font-medium">
+          {quiz.length} pasang <span className="text-mist text-sm font-semibold">· {cards.length} kartu</span>
+        </h2>
+        {!revealed && <p className="text-mist text-xs font-semibold">Pemain mencocokkan kartu, lalu menebak bunyi ayatnya.</p>}
+        {revealed && (
+          <ul className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+            {quiz.map((q, i) => {
+              const options = strings(q.options)
+              const reference = text(cards.find((c) => c.pair === q.pair)?.text)
+              return (
+                <li key={i} className="rounded-xl bg-white/5 border border-line px-3 py-2 text-sm">
+                  <span className="font-bold">{reference}</span>
+                  <p className="text-mist text-xs font-semibold leading-snug mt-0.5">{typeof q.answer === 'number' ? options[q.answer] : ''}</p>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
     )
   }

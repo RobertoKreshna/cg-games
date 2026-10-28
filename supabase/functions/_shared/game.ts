@@ -1,15 +1,30 @@
 // Single source of truth for game rules. Pure TypeScript with no imports so it can run in both
 // Deno (edge functions) and Next.js (lib/scoring.ts re-exports it).
 
-export type GameType = 'bible_quiz' | 'verse_scramble' | 'emoji_story'
+export type GameType = 'bible_quiz' | 'verse_scramble' | 'emoji_story' | 'memory_match'
 
-export const GAME_TYPES: GameType[] = ['bible_quiz', 'verse_scramble', 'emoji_story']
+export const GAME_TYPES: GameType[] = ['bible_quiz', 'verse_scramble', 'emoji_story', 'memory_match']
 export const ROOM_MODES = ['individual', 'team'] as const
 
 export const TIMER_MS: Record<GameType, number> = {
   bible_quiz: 15000,
   verse_scramble: 30000,
   emoji_story: 20000,
+  // Fallback only (largest board): a memory board stores its own `timerMs`, see timerMsOf.
+  memory_match: 220000,
+}
+
+/** The timer for a question: the one stored in its content if any (memory boards), else the game default. */
+export function timerMsOf(gameType: GameType, content: unknown): number {
+  const stored = (content as { timerMs?: unknown } | null)?.timerMs
+  return typeof stored === 'number' && stored > 0 ? stored : TIMER_MS[gameType]
+}
+
+export const MAX_ANSWER_LENGTH = 500
+export const MAX_MEMORY_ANSWER_LENGTH = 2000
+
+export function maxAnswerLength(gameType: GameType): number {
+  return gameType === 'memory_match' ? MAX_MEMORY_ANSWER_LENGTH : MAX_ANSWER_LENGTH
 }
 
 export const MAX_PLAYERS_PER_ROOM = 30
@@ -79,6 +94,9 @@ export function correctAnswerOf(gameType: GameType, content: unknown): unknown {
   const c = content as Content
   if (gameType === 'bible_quiz') return c.answer_index
   if (gameType === 'verse_scramble') return c.correct_order
+  if (gameType === 'memory_match') {
+    return Array.isArray(c.quiz) ? (c.quiz as { answer: number }[]).map((q) => q.answer) : []
+  }
   return c.correct
 }
 
@@ -99,6 +117,9 @@ export function scoreAnswer(
 ): ScoreResult {
   const c = content as Content
   const bad: ScoreResult = { ok: false, error: 'invalid answer format' }
+
+  // Memory boards are scored by scoreMemoryAnswer (see _shared/memory.ts).
+  if (gameType === 'memory_match') return bad
 
   if (gameType === 'bible_quiz') {
     const isCorrect = submitted === String(c.answer_index)

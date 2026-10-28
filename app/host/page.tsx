@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createRoom, assignTeams, startGame, nextQuestion, revealQuestion, kickPlayer, endGame, getHostState } from '@/lib/api'
-import { TIMER_MS, DEADLINE_GRACE_MS } from '@/lib/scoring'
+import { TIMER_MS, DEADLINE_GRACE_MS, timerMsOf } from '@/lib/scoring'
+import { MEMORY_CARD_COUNTS, MEMORY_DELAYS_MS, MEMORY_DEFAULT_CARDS, MEMORY_DEFAULT_DELAY_MS } from '@/lib/memory-rules'
 import { now } from '@/lib/clock'
 import { useWakeLock } from '@/lib/wake-lock'
 import { StandingsCard } from '@/components/shared/Standings'
@@ -39,6 +40,7 @@ const GAME_OPTIONS: { type: GameType; emoji: string; label: string; desc: string
   { type: 'bible_quiz', emoji: '📖', label: 'Bible Quiz', desc: `Pilihan ganda · ${TIMER_MS.bible_quiz / 1000} detik` },
   { type: 'verse_scramble', emoji: '📝', label: 'Verse Scramble', desc: `Susun ayat · ${TIMER_MS.verse_scramble / 1000} detik` },
   { type: 'emoji_story', emoji: '🎭', label: 'Emoji Story', desc: `Tebak kisah · ${TIMER_MS.emoji_story / 1000} detik` },
+  { type: 'memory_match', emoji: '🧩', label: 'Memory Ayat', desc: 'Cocokkan kartu · tebak ayat' },
 ]
 
 export default function HostPage() {
@@ -47,6 +49,8 @@ export default function HostPage() {
   const [gameType, setGameType] = useState<GameType>('bible_quiz')
   const [mode, setMode] = useState<RoomMode>('individual')
   const [questionCount, setQuestionCount] = useState(10)
+  const [memoryCards, setMemoryCards] = useState<number>(MEMORY_DEFAULT_CARDS)
+  const [memoryDelayMs, setMemoryDelayMs] = useState<number>(MEMORY_DEFAULT_DELAY_MS)
   const [roomCode, setRoomCode] = useState('')
   const [hostToken, setHostToken] = useState('')
   const [sessionId, setSessionId] = useState('')
@@ -83,7 +87,7 @@ export default function HostPage() {
       setCorrectAnswer(data.correctAnswer ?? null)
       setDeadlineAt(
         data.questionStatus === 'showing' && data.questionElapsedMs != null
-          ? now() + TIMER_MS[data.gameType] + DEADLINE_GRACE_MS - data.questionElapsedMs
+          ? now() + timerMsOf(data.gameType, data.currentQuestion?.content) + DEADLINE_GRACE_MS - data.questionElapsedMs
           : null,
       )
       setPhase('playing')
@@ -141,7 +145,7 @@ export default function HostPage() {
       setQuestion({ gameType: e.payload.game_type, content: e.payload.content as unknown as Record<string, unknown> })
       setCorrectAnswer(null)
       setSecondsLeft(null)
-      setDeadlineAt(now() + TIMER_MS[gameType] + DEADLINE_GRACE_MS)
+      setDeadlineAt(now() + timerMsOf(gameType, e.payload.content) + DEADLINE_GRACE_MS)
     } else if (e.event === 'player_answered') {
       setAnsweredIds((prev) => new Set(prev).add(e.payload.player_id))
     } else if (e.event === 'question_reveal') {
@@ -184,7 +188,10 @@ export default function HostPage() {
     setLoading(true)
     setError('')
     try {
-      const data = await createRoom(gameType, mode, questionCount)
+      const data = await createRoom(
+        gameType, mode, questionCount,
+        gameType === 'memory_match' ? { cards: memoryCards, delayMs: memoryDelayMs } : undefined,
+      )
       setRoomCode(data.code)
       setHostToken(data.host_token)
       saveHostSession(data.code, { hostToken: data.host_token, roomId: data.room_id })
@@ -370,22 +377,59 @@ export default function HostPage() {
             </div>
           </div>
 
-          <div>
-            <p className="tag mb-3">Jumlah Soal</p>
-            <div className="card p-1 flex gap-1">
-              {[5, 10, 15, 20].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setQuestionCount(n)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                    questionCount === n ? 'bg-pick text-white' : 'text-mist'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+          {gameType !== 'memory_match' && (
+            <div>
+              <p className="tag mb-3">Jumlah Soal</p>
+              <div className="card p-1 flex gap-1">
+                {[5, 10, 15, 20].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setQuestionCount(n)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                      questionCount === n ? 'bg-pick text-white' : 'text-mist'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {gameType === 'memory_match' && (
+            <>
+              <div>
+                <p className="tag mb-3">Jumlah Kartu</p>
+                <div className="card p-1 flex gap-1">
+                  {MEMORY_CARD_COUNTS.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setMemoryCards(n)}
+                      aria-pressed={memoryCards === n}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${memoryCards === n ? 'bg-pick text-white' : 'text-mist'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="tag mb-3">Kartu Salah Tertutup Setelah</p>
+                <div className="card p-1 flex gap-1">
+                  {MEMORY_DELAYS_MS.map((ms) => (
+                    <button
+                      key={ms}
+                      onClick={() => setMemoryDelayMs(ms)}
+                      aria-pressed={memoryDelayMs === ms}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${memoryDelayMs === ms ? 'bg-pick text-white' : 'text-mist'}`}
+                    >
+                      {ms / 1000} dtk
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {error && <p className="text-rose-300 text-sm font-semibold text-center">{error}</p>}
           <button onClick={handleCreate} disabled={loading} className="btn-primary py-4 text-base w-full">

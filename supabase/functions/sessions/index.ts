@@ -6,8 +6,10 @@ import { revealIfComplete, forceReveal, type CachedQ } from '../_shared/reveal.t
 import { computeStandings } from '../_shared/standings.ts'
 import { reportError } from '../_shared/report.ts'
 import {
-  TIMER_MS, effectiveTimeMs, isPastDeadline, scoreAnswer, publicContent, shuffle,
+  effectiveTimeMs, isPastDeadline, scoreAnswer, publicContent, shuffle,
+  timerMsOf, maxAnswerLength, MAX_MEMORY_ANSWER_LENGTH,
 } from '../_shared/game.ts'
+import { buildBoard, scoreMemoryAnswer, type MemoryVerse } from '../_shared/memory.ts'
 import { eq, and } from 'npm:drizzle-orm'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -73,11 +75,29 @@ Deno.serve(async (req) => {
       const isFirstCall = cachedQs.length === 0
 
       if (isFirstCall) {
-        const pool = await db
-          .select({ id: questions.id, gameType: questions.gameType, content: questions.content })
-          .from(questions)
-          .where(eq(questions.gameType, row.room.gameType))
-        cachedQs = shuffle(pool).slice(0, row.room.questionCount)
+        if (row.room.gameType === 'memory_match') {
+          // One board per game, built from the Verse Scramble verses and stored as a questions row so
+          // answers.question_id keeps its foreign key.
+          const verseRows = await db
+            .select({ content: questions.content })
+            .from(questions)
+            .where(eq(questions.gameType, 'verse_scramble'))
+          const verses: MemoryVerse[] = verseRows.map(({ content }) => {
+            const c = content as { reference: string; words: string[]; correct_order: number[] }
+            return { reference: c.reference, text: c.correct_order.map((i) => c.words[i]).join(' ') }
+          })
+          const board = buildBoard(verses, row.room.memoryCards, row.room.memoryDelayMs)
+          const [boardRow] = await db.insert(questions)
+            .values({ gameType: 'memory_match', orderIndex: 0, content: board })
+            .returning({ id: questions.id })
+          cachedQs = [{ id: boardRow.id, gameType: 'memory_match', content: board }]
+        } else {
+          const pool = await db
+            .select({ id: questions.id, gameType: questions.gameType, content: questions.content })
+            .from(questions)
+            .where(eq(questions.gameType, row.room.gameType))
+          cachedQs = shuffle(pool).slice(0, row.room.questionCount)
+        }
       }
 
       const nextIndex = status === 'waiting' ? 0 : currentQuestionIndex + 1
@@ -150,7 +170,7 @@ Deno.serve(async (req) => {
       const { question_id, submitted_answer, time_taken_ms } = body
       if (
         typeof question_id !== 'string' ||
-        typeof submitted_answer !== 'string' || submitted_answer.length > 500 ||
+        typeof submitted_answer !== 'string' || submitted_answer.length > MAX_MEMORY_ANSWER_LENGTH ||
         typeof time_taken_ms !== 'number' || !Number.isFinite(time_taken_ms)
       ) {
         return json({ error: 'missing required fields' }, 400)
@@ -183,12 +203,17 @@ Deno.serve(async (req) => {
       if (!current || current.id !== question_id) return json({ error: 'not the current question' }, 400)
       if (sessionRow.session.status !== 'question') return previousAnswer()
 
-      const timerMs = TIMER_MS[current.gameType]
+      // Memory answers may be long (a flip log); every other game keeps the short limit.
+      if (submitted_answer.length > maxAnswerLength(current.gameType)) return json({ error: 'missing required fields' }, 400)
+
+      const timerMs = timerMsOf(current.gameType, current.content)
       const startedAt = sessionRow.session.questionStartedAt
       const serverElapsed = startedAt ? Date.now() - startedAt.getTime() : time_taken_ms
       const timeMs = effectiveTimeMs(time_taken_ms, serverElapsed, timerMs)
 
-      const scored = scoreAnswer(current.gameType, current.content, submitted_answer, timeMs)
+      const scored = current.gameType === 'memory_match'
+        ? scoreMemoryAnswer(current.content, submitted_answer, timeMs)
+        : scoreAnswer(current.gameType, current.content, submitted_answer, timeMs)
       if (!scored.ok) return json({ error: scored.error }, 400)
       const points = isPastDeadline(serverElapsed, timerMs) ? 0 : scored.points
 

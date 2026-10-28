@@ -5,6 +5,7 @@ import { broadcastToRoom } from '../_shared/broadcast.ts'
 import { computeStandings } from '../_shared/standings.ts'
 import { reportError } from '../_shared/report.ts'
 import { revealIfComplete, type CachedQ } from '../_shared/reveal.ts'
+import { MEMORY_DEFAULT_CARDS, MEMORY_DEFAULT_DELAY_MS, isMemoryCardCount, isMemoryDelay } from '../_shared/memory.ts'
 import {
   GAME_TYPES, ROOM_MODES, MAX_PLAYERS_PER_ROOM, MAX_NAME_LENGTH, MAX_QUESTION_COUNT,
   MIN_TEAMS, MAX_TEAMS, generateRoomCode, publicContent, correctAnswerOf, shuffle,
@@ -30,12 +31,18 @@ Deno.serve(async (req) => {
     // POST /rooms → create room
     if (req.method === 'POST' && segments.length === 0) {
       const body = await req.json().catch(() => null)
-      const { game_type, mode = 'individual', question_count = 10 } = body ?? {}
+      const {
+        game_type, mode = 'individual', question_count = 10,
+        memory_cards = MEMORY_DEFAULT_CARDS, memory_delay_ms = MEMORY_DEFAULT_DELAY_MS,
+      } = body ?? {}
       if (!GAME_TYPES.includes(game_type)) return json({ error: 'invalid game_type' }, 400)
       if (!(ROOM_MODES as readonly string[]).includes(mode)) return json({ error: 'invalid mode' }, 400)
       if (!Number.isInteger(question_count) || question_count < 1 || question_count > MAX_QUESTION_COUNT) {
         return json({ error: 'invalid question_count' }, 400)
       }
+      const isMemory = game_type === 'memory_match'
+      if (isMemory && !isMemoryCardCount(memory_cards)) return json({ error: 'invalid memory_cards' }, 400)
+      if (isMemory && !isMemoryDelay(memory_delay_ms)) return json({ error: 'invalid memory_delay_ms' }, 400)
 
       let code = ''
       for (let i = 0; i < 10; i++) {
@@ -46,7 +53,16 @@ Deno.serve(async (req) => {
       if (!code) return json({ error: 'could not generate unique code' }, 500)
 
       const hostToken = generateToken()
-      const [room] = await db.insert(rooms).values({ code, gameType: game_type, mode, questionCount: question_count, hostToken }).returning()
+      const [room] = await db.insert(rooms).values({
+        code,
+        gameType: game_type,
+        mode,
+        // A memory game is exactly one board, whatever question count the client sent.
+        questionCount: isMemory ? 1 : question_count,
+        memoryCards: isMemory ? memory_cards : MEMORY_DEFAULT_CARDS,
+        memoryDelayMs: isMemory ? memory_delay_ms : MEMORY_DEFAULT_DELAY_MS,
+        hostToken,
+      }).returning()
       return json({ room_id: room.id, code: room.code, host_token: hostToken })
     }
 
