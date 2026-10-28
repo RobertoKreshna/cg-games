@@ -12,6 +12,7 @@ Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dim
 
 - Room system dengan 6-karakter kode; pemain gabung dengan **scan QR** atau buka link `/join?code=XXXXXX` (kode terisi otomatis)
 - Host mengontrol jalannya game (soal berikutnya, tampilkan jawaban lebih awal)
+- Layar host menampilkan soal, jawaban benar, dan referensi ayat setelah reveal (bahan diskusi); daftar pemain ringkas dan tombol aksi selalu terlihat, juga untuk 30 pemain
 - Mode Individual atau Tim (tim diacak otomatis); skor tim = rata-rata poin per anggota
 - Klasemen sementara tampil di setiap reveal, leaderboard di akhir
 - Hingga 30 player per room, nama harus unik di dalam room

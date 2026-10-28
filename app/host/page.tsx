@@ -8,9 +8,10 @@ import { useWakeLock } from '@/lib/wake-lock'
 import { StandingsCard } from '@/components/shared/Standings'
 import { JoinQr } from '@/components/shared/JoinQr'
 import { ConnectionBanner } from '@/components/shared/ConnectionBanner'
+import { HostQuestionCard } from '@/components/shared/HostQuestionCard'
 import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
-import type { GameType, RoomMode, Standings } from '@/types/game'
+import type { GameType, PublicQuestion, RoomMode, Standings } from '@/types/game'
 
 type HostPhase = 'configure' | 'lobby' | 'playing' | 'finished'
 
@@ -27,6 +28,8 @@ interface HostState {
   answeredIds?: string[]
   questionElapsedMs?: number | null
   standings?: Standings | null
+  currentQuestion?: { gameType: GameType; content: Record<string, unknown> } | null
+  correctAnswer?: unknown
 }
 
 interface PlayerInfo { id: string; name: string; teamName?: string; teamColor?: string }
@@ -54,6 +57,8 @@ export default function HostPage() {
   const [currentQ, setCurrentQ] = useState(0)
   const [totalQ, setTotalQ] = useState(0)
   const [standings, setStandings] = useState<Standings | null>(null)
+  const [question, setQuestion] = useState<PublicQuestion | null>(null)
+  const [correctAnswer, setCorrectAnswer] = useState<unknown>(null)
   // When the host reveals on its own if players have not all answered (timer + grace).
   const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
@@ -71,6 +76,8 @@ export default function HostPage() {
       setTotalQ(data.totalQ ?? 0)
       setAnsweredIds(new Set(data.answeredIds ?? []))
       setStandings(data.standings ?? null)
+      setQuestion(data.currentQuestion ? { gameType: data.currentQuestion.gameType, content: data.currentQuestion.content } : null)
+      setCorrectAnswer(data.correctAnswer ?? null)
       setDeadlineAt(
         data.questionStatus === 'showing' && data.questionElapsedMs != null
           ? now() + TIMER_MS[data.gameType] + DEADLINE_GRACE_MS - data.questionElapsedMs
@@ -128,6 +135,8 @@ export default function HostPage() {
       setQuestionStatus('showing')
       setAnsweredIds(new Set())
       setStandings(null)
+      setQuestion({ gameType: e.payload.game_type, content: e.payload.content as unknown as Record<string, unknown> })
+      setCorrectAnswer(null)
       setSecondsLeft(null)
       setDeadlineAt(now() + TIMER_MS[gameType] + DEADLINE_GRACE_MS)
     } else if (e.event === 'player_answered') {
@@ -135,6 +144,7 @@ export default function HostPage() {
     } else if (e.event === 'question_reveal') {
       setQuestionStatus('reveal')
       setStandings(e.payload.standings ?? null)
+      setCorrectAnswer(e.payload.correct_answer)
       setDeadlineAt(null)
     } else if (e.event === 'game_finished') {
       setPhase('finished')
@@ -389,11 +399,13 @@ export default function HostPage() {
   }
 
   if (phase === 'playing') {
+    const isLast = totalQ > 0 && currentQ >= totalQ
+    const showQuestion = question && (questionStatus === 'showing' || questionStatus === 'reveal')
     return (
-      <main className="min-h-dvh flex flex-col p-6 items-center">
+      <main className="min-h-dvh flex flex-col px-6 pt-6 items-center">
         <ConnectionBanner status={connection} />
         <div className="w-full max-w-sm flex flex-col flex-1">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-5">
           <div>
             <p className="tag">{roomCode}</p>
             <p className="font-bold text-sm mt-0.5">
@@ -407,11 +419,14 @@ export default function HostPage() {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pb-4">
           {questionStatus === 'idle' && (
             <div className="card p-8 flex flex-col items-center gap-2 text-center">
               <p className="text-mist text-sm font-semibold">Tekan tombol untuk mulai soal pertama</p>
             </div>
+          )}
+          {showQuestion && (
+            <HostQuestionCard question={question} correctAnswer={correctAnswer} revealed={questionStatus === 'reveal'} />
           )}
           {(questionStatus === 'showing' || questionStatus === 'reveal') && (
             <div className="card p-4 flex flex-col gap-3">
@@ -427,45 +442,52 @@ export default function HostPage() {
                   {questionStatus === 'reveal' ? players.length : answeredIds.size} / {players.length}
                 </span>
               </div>
-              <div className="flex flex-col gap-2">
+              <ul className="flex flex-wrap gap-1.5">
                 {players.map((p) => {
                   const done = questionStatus === 'reveal' || answeredIds.has(p.id)
                   return (
-                    <div key={p.id} className="flex items-center gap-2.5">
-                      <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center transition-colors ${done ? 'bg-[#22C55E]' : 'bg-white/10'}`}>
-                        {done && <span className="text-white text-[9px] font-bold leading-none">✓</span>}
-                      </div>
-                      <span className={`text-sm font-semibold transition-colors ${done ? 'text-white' : 'text-faint'}`}>
-                        {p.name}
+                    <li
+                      key={p.id}
+                      title={p.teamName}
+                      className={`inline-flex items-center gap-1.5 max-w-[11rem] rounded-full border px-2.5 py-1 text-xs font-bold transition-colors ${
+                        done ? 'bg-emerald-400/15 border-emerald-400/50 text-white' : 'bg-white/5 border-line text-faint'
+                      }`}
+                    >
+                      <span aria-hidden className={`w-3.5 h-3.5 rounded-full shrink-0 grid place-items-center text-[8px] leading-none ${done ? 'bg-[#22C55E] text-white' : 'bg-white/10'}`}>
+                        {done && '✓'}
                       </span>
-                      {p.teamName && <span className="text-faint text-xs ml-auto">{p.teamName}</span>}
-                    </div>
+                      <span className="truncate">{p.name}</span>
+                      {p.teamColor && <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />}
+                      <span className="sr-only">{done ? ', sudah menjawab' : ', belum menjawab'}{p.teamName ? `, ${p.teamName}` : ''}</span>
+                    </li>
                   )
                 })}
-              </div>
+              </ul>
+            </div>
+          )}
+          {questionStatus === 'reveal' && standings && (
+            <div className="flex justify-center">
+              <StandingsCard standings={standings} />
             </div>
           )}
         </div>
 
-        {questionStatus === 'reveal' && standings && (
-          <div className="mb-4 flex justify-center">
-            <StandingsCard standings={standings} />
-          </div>
-        )}
-
-        {error && <p className="text-rose-300 text-xs font-semibold text-center">{error}</p>}
-        <button
-          onClick={handleNext}
-          disabled={loading || questionStatus === 'showing'}
-          className="btn-primary py-4 text-base w-full"
-        >
-          {loading ? '...' : questionStatus === 'idle' ? '▶ Mulai' : '⏭ Soal Berikutnya'}
-        </button>
-        {questionStatus === 'showing' && (
-          <button onClick={handleReveal} disabled={loading} className="btn-secondary py-3 text-sm w-full mt-2">
-            Tampilkan jawaban sekarang
+        {/* Stays on screen however long the list above gets (30 players, long questions). */}
+        <div className="sticky bottom-0 mt-auto pt-6 pb-6 bg-gradient-to-t from-night from-60% to-transparent">
+          {error && <p className="text-rose-300 text-xs font-semibold text-center mb-2">{error}</p>}
+          <button
+            onClick={handleNext}
+            disabled={loading || questionStatus === 'showing'}
+            className="btn-primary py-4 text-base w-full"
+          >
+            {loading ? '...' : questionStatus === 'idle' ? '▶ Mulai' : isLast ? '🏁 Lihat Hasil Akhir' : '⏭ Soal Berikutnya'}
           </button>
-        )}
+          {questionStatus === 'showing' && (
+            <button onClick={handleReveal} disabled={loading} className="btn-secondary py-3 text-sm w-full mt-2">
+              Tampilkan jawaban sekarang
+            </button>
+          )}
+        </div>
         </div>
       </main>
     )

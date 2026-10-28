@@ -251,6 +251,14 @@ Deno.serve(async (req) => {
         answeredIds,
         questionElapsedMs,
         standings,
+        // What the host needs to run the discussion after a refresh: the live question and,
+        // once revealed, its answer.
+        currentQuestion: currentQuestion && questionStatus !== 'idle'
+          ? { id: currentQuestion.id, gameType: currentQuestion.gameType, content: publicContent(currentQuestion.content) }
+          : null,
+        correctAnswer: currentQuestion && questionStatus === 'reveal'
+          ? correctAnswerOf(currentQuestion.gameType as GameType, currentQuestion.content)
+          : null,
       })
     }
 

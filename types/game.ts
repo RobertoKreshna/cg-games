@@ -50,3 +50,9 @@ export interface TeamInfo {
   name: string
   color: string
 }
+
+/** A question as players see it: content without the answer fields. */
+export interface PublicQuestion {
+  gameType: GameType
+  content: Record<string, unknown>
+}
