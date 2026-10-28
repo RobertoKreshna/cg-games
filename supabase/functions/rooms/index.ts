@@ -4,12 +4,15 @@ import { corsResponse, json } from '../_shared/cors.ts'
 import { broadcastToRoom } from '../_shared/broadcast.ts'
 import { computeStandings } from '../_shared/standings.ts'
 import { reportError } from '../_shared/report.ts'
+import { revealIfComplete, type CachedQ } from '../_shared/reveal.ts'
 import {
   GAME_TYPES, ROOM_MODES, MAX_PLAYERS_PER_ROOM, MAX_NAME_LENGTH, MAX_QUESTION_COUNT,
   MIN_TEAMS, MAX_TEAMS, generateRoomCode, publicContent, correctAnswerOf, shuffle,
   type GameType,
 } from '../_shared/game.ts'
-import { eq, and, sql } from 'npm:drizzle-orm'
+import { eq, and, sql, desc } from 'npm:drizzle-orm'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function generateToken(): string {
   return crypto.randomUUID().replace(/-/g, '')
@@ -104,6 +107,61 @@ Deno.serve(async (req) => {
         session_token: sessionToken,
         room: { id: room.id, code: room.code, game_type: room.gameType, mode: room.mode },
       })
+    }
+
+    // POST /rooms/:code/kick → remove a player (host only), e.g. someone who left but still blocks the round
+    if (req.method === 'POST' && segments.length === 2 && segments[1] === 'kick') {
+      const code = segments[0]
+      const hostToken = req.headers.get('x-host-token')
+      const body = await req.json().catch(() => null)
+      const playerId = body?.player_id
+      if (typeof playerId !== 'string' || !UUID.test(playerId)) return json({ error: 'invalid player_id' }, 400)
+
+      const [room] = await db.select().from(rooms).where(
+        and(eq(rooms.code, code), eq(rooms.hostToken, hostToken ?? ''))
+      )
+      if (!room) return json({ error: 'unauthorized' }, 403)
+      if (room.status === 'finished') return json({ error: 'game already finished' }, 409)
+
+      // Their answers go with them (cascade), so a kicked player no longer counts in standings.
+      const [removed] = await db.delete(players)
+        .where(and(eq(players.id, playerId), eq(players.roomId, room.id)))
+        .returning({ id: players.id })
+      if (!removed) return json({ error: 'player not found' }, 404)
+
+      await broadcastToRoom(code, 'player_kicked', { player_id: removed.id })
+
+      // If the kicked player was the last one the round was waiting for, reveal now.
+      const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id)).orderBy(desc(gameSessions.startedAt)).limit(1)
+      if (session?.status === 'question') {
+        const q = ((session.questionIds as CachedQ[] | null) ?? [])[session.currentQuestionIndex]
+        if (q) await revealIfComplete(db, room, session.id, q)
+      }
+      return json({ player_id: removed.id })
+    }
+
+    // POST /rooms/:code/end → end the game now, or close the room if it has not started (host only)
+    if (req.method === 'POST' && segments.length === 2 && segments[1] === 'end') {
+      const code = segments[0]
+      const hostToken = req.headers.get('x-host-token')
+
+      const [room] = await db.select().from(rooms).where(
+        and(eq(rooms.code, code), eq(rooms.hostToken, hostToken ?? ''))
+      )
+      if (!room) return json({ error: 'unauthorized' }, 403)
+      // Idempotent: a double tap must not fail.
+      if (room.status === 'finished') return json({ status: 'finished' })
+
+      const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id)).orderBy(desc(gameSessions.startedAt)).limit(1)
+      await db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, room.id))
+      if (session) {
+        await db.update(gameSessions).set({ status: 'finished' }).where(eq(gameSessions.id, session.id))
+        await broadcastToRoom(code, 'game_finished', { session_id: session.id })
+        return json({ status: 'finished', session_id: session.id })
+      }
+      // Never started: there are no results to show, players are simply sent home.
+      await broadcastToRoom(code, 'room_closed', {})
+      return json({ status: 'closed' })
     }
 
     // POST /rooms/:code/teams → randomly assign teams (host only)
@@ -278,11 +336,17 @@ Deno.serve(async (req) => {
       // Players are told their team here (and by teams_assigned), so they can see it in the lobby.
       const [team] = player.teamId ? await db.select().from(teams).where(eq(teams.id, player.teamId)) : []
       const teamOut = team ? { id: team.id, name: team.name, color: team.color } : null
-      const reply = (body: Record<string, unknown>) => json({ ...body, team: teamOut })
+      // Who is already in the room, so the lobby can show it (names only).
+      const lobbyPlayers = room.status === 'lobby'
+        ? (await db.select({ id: players.id, name: players.name }).from(players).where(eq(players.roomId, room.id)).orderBy(players.joinedAt))
+        : undefined
+      const reply = (body: Record<string, unknown>) => json({ ...body, team: teamOut, ...(lobbyPlayers ? { players: lobbyPlayers } : {}) })
 
       if (room.status === 'lobby') return reply({ phase: 'lobby' })
 
       const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id))
+      // The host closed the room before starting: nothing to resume.
+      if (!session && room.status === 'finished') return reply({ phase: 'closed' })
       if (!session || session.status === 'waiting') return reply({ phase: 'lobby', session_id: session?.id })
 
       if (session.status === 'finished' || room.status === 'finished') {

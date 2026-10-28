@@ -73,14 +73,13 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
   }
 
   return (
-    <div className="flex flex-col gap-5 p-4 max-w-lg mx-auto w-full flex-1 pt-6">
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex-1">
-          <p className="tag mb-2">Soal {questionIndex + 1} / {totalQuestions}</p>
-          <h2 className="font-display text-xl font-medium leading-snug">{content.question}</h2>
-        </div>
-        <Timer durationMs={Math.max(500, TIMER_MS.bible_quiz - elapsedMs)} onExpire={handleExpire} />
+    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-2">
+      {/* Stays on screen when a long question pushes the options below the fold. */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-night/90 backdrop-blur flex items-center justify-between">
+        <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
+        <Timer compact durationMs={Math.max(500, TIMER_MS.bible_quiz - elapsedMs)} onExpire={handleExpire} />
       </div>
+      <h2 className="font-display text-xl font-medium leading-snug">{content.question}</h2>
 
       <div className="grid grid-cols-2 gap-3">
         {content.options.map((opt, i) => {

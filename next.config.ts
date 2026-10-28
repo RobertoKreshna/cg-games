@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// Without these the app builds but every request goes to "undefined/functions/v1", which is hard to
+// diagnose. Fail the production build with a clear message instead.
+const missing = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"].filter((name) => !process.env[name]);
+if (missing.length > 0) {
+  const message = `Missing environment variable(s): ${missing.join(", ")}. See .env.example.`;
+  if (isDev) console.warn(`\n[cg-games] ${message}\n`);
+  else throw new Error(message);
+}
+
 // The browser only talks to this site and to Supabase (REST for functions, WebSocket for realtime).
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host

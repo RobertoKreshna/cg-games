@@ -22,7 +22,9 @@ export function Leaderboard({ entries, mode, meId }: LeaderboardProps) {
         return (
           <div
             key={entry.playerId ?? entry.teamId}
-            className={`animate-pop-in flex items-center gap-3 rounded-2xl p-4 border ${
+            data-me={isMe ? 'true' : undefined}
+            // scroll-mb: when your row is scrolled into view it must clear the sticky back button.
+            className={`animate-pop-in scroll-mb-32 flex items-center gap-3 rounded-2xl p-4 border ${
               podium ? podium.accent : 'bg-surface border-line'
             } ${i === 0 ? 'py-5' : ''} ${isMe ? 'ring-2 ring-accent' : ''}`}
             style={{ animationDelay: `${Math.min(i, 10) * 70}ms` }}

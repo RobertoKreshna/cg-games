@@ -5,9 +5,11 @@ interface TimerProps {
   durationMs: number
   onExpire: () => void
   className?: string
+  /** Smaller ring, for a bar that stays on screen while the question scrolls. */
+  compact?: boolean
 }
 
-export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
+export function Timer({ durationMs, onExpire, className = '', compact = false }: TimerProps) {
   const [remainingMs, setRemainingMs] = useState(durationMs)
   const onExpireRef = useRef(onExpire)
   useEffect(() => {
@@ -30,12 +32,13 @@ export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
   const pct = remainingMs / durationMs
   const seconds = Math.ceil(remainingMs / 1000)
   const circumference = 2 * Math.PI * 26
+  const size = compact ? 'w-11 h-11' : 'w-14 h-14'
   const color = pct > 0.45 ? '#4ADE80' : pct > 0.2 ? '#FFD43B' : '#FF6B81'
 
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <div role="timer" aria-label={`${seconds} detik`} className={`relative w-14 h-14 ${pct <= 0.2 ? 'animate-pulse' : ''}`}>
-        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 60 60">
+      <div role="timer" aria-label={`${seconds} detik`} className={`relative ${size} ${pct <= 0.2 ? 'animate-pulse' : ''}`}>
+        <svg className={`${size} -rotate-90`} viewBox="0 0 60 60">
           <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="4" />
           <circle
             cx="30" cy="30" r="26" fill="none"
@@ -46,7 +49,7 @@ export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
             className="transition-all duration-100"
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-display font-semibold text-lg tabular-nums">
+        <span className={`absolute inset-0 flex items-center justify-center font-display font-semibold tabular-nums ${compact ? 'text-base' : 'text-lg'}`}>
           {seconds}
         </span>
       </div>

@@ -49,4 +49,21 @@ describe('applyServerState', () => {
     const prev = state({ team: { id: 't', name: 'Tim Biru', color: '#00f' } })
     expect(applyServerState(prev, { phase: 'lobby' }).team?.id).toBe('t')
   })
+
+  it('keeps the lobby player list from the server and does not wipe it when a later response omits it', () => {
+    const withPlayers = applyServerState(INITIAL, { phase: 'lobby', players: [{ id: 'a', name: 'Ana' }, { id: 'b', name: 'Budi' }] })
+    expect(withPlayers.lobbyPlayers.map((p) => p.name)).toEqual(['Ana', 'Budi'])
+    const later = applyServerState(withPlayers, { phase: 'question', current_question: q('a') })
+    expect(later.lobbyPlayers.length).toBe(2)
+  })
+
+  it('a closed room ends the session without a question', () => {
+    const out = applyServerState(INITIAL, { phase: 'closed' })
+    expect(out.ended).toBe('closed')
+  })
+
+  it('an ended state is not cleared by a later server snapshot', () => {
+    const ended = { ...INITIAL, ended: 'kicked' as const }
+    expect(applyServerState(ended, { phase: 'question', current_question: q('a') }).ended).toBe('kicked')
+  })
 })

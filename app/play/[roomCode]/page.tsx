@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useParams, useRouter } from 'next/navigation'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import { getRoomState } from '@/lib/api'
-import { getPlayerSessionRaw, parsePlayerSession } from '@/lib/tokens'
+import { clearPlayerSession, getPlayerSessionRaw, parsePlayerSession } from '@/lib/tokens'
+import { myRank } from '@/lib/standings'
 import { useWakeLock } from '@/lib/wake-lock'
 import { ConnectionBanner } from '@/components/shared/ConnectionBanner'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
@@ -27,7 +28,7 @@ export default function PlayPage() {
   const playerId = session?.playerId
 
   const [game, setGame] = useState<GameState>(INITIAL)
-  const { phase, question, lastPoints, submittedAnswer, correctAnswer, sessionId, standings, team } = game
+  const { phase, question, lastPoints, submittedAnswer, correctAnswer, sessionId, standings, team, lobbyPlayers, ended } = game
 
   const sync = useCallback(() => {
     if (!sessionToken) return
@@ -37,7 +38,10 @@ export default function PlayPage() {
       } else {
         setGame((prev) => applyServerState(prev, data))
       }
-    }).catch(() => {})
+    }).catch((e: unknown) => {
+      // The server no longer knows this token: removed by the host, or rejoined on another device.
+      if (e instanceof Error && e.message === 'unauthorized') setGame((prev) => ({ ...prev, ended: prev.ended ?? 'invalid' }))
+    })
   }, [roomCode, sessionToken, router])
 
   useEffect(() => { sync() }, [sync])
@@ -58,6 +62,8 @@ export default function PlayPage() {
           elapsedMs: 0,
         },
         team: prev.team,
+        lobbyPlayers: prev.lobbyPlayers,
+        ended: prev.ended,
         standings: null,
         lastPoints: null,
         submittedAnswer: null,
@@ -68,6 +74,15 @@ export default function PlayPage() {
     } else if (e.event === 'teams_assigned') {
       const mine = e.payload.teams.find((t) => t.members.some((m) => m.id === playerId))
       setGame((prev) => ({ ...prev, team: mine ? { id: mine.id, name: mine.name, color: mine.color } : prev.team }))
+    } else if (e.event === 'player_joined') {
+      setGame((prev) => prev.lobbyPlayers.some((p) => p.id === e.payload.player_id)
+        ? prev
+        : { ...prev, lobbyPlayers: [...prev.lobbyPlayers, { id: e.payload.player_id, name: e.payload.name }] })
+    } else if (e.event === 'player_kicked') {
+      if (e.payload.player_id === playerId) setGame((prev) => ({ ...prev, ended: 'kicked' }))
+      else setGame((prev) => ({ ...prev, lobbyPlayers: prev.lobbyPlayers.filter((p) => p.id !== e.payload.player_id) }))
+    } else if (e.event === 'room_closed') {
+      setGame((prev) => ({ ...prev, ended: 'closed' }))
     } else if (e.event === 'game_finished') {
       router.push(`/results/${e.payload.session_id}`)
     }
@@ -96,6 +111,28 @@ export default function PlayPage() {
     )
   }
 
+  if (ended) {
+    const copy = {
+      kicked: { emoji: '🚪', title: 'Kamu dikeluarkan oleh host', body: 'Kalau ini keliru, minta host untuk membuka room dan gabung lagi.' },
+      closed: { emoji: '👋', title: 'Room ditutup oleh host', body: 'Terima kasih sudah ikut bermain!' },
+      invalid: { emoji: '🔒', title: 'Sesimu sudah tidak berlaku', body: 'Mungkin kamu dikeluarkan host, atau masuk dari perangkat lain dengan nama yang sama.' },
+    }[ended]
+    const leave = (to: string) => { clearPlayerSession(roomCode); router.push(to) }
+    return (
+      <main className="min-h-dvh flex items-center justify-center p-6">
+        <div role="alert" className="card p-8 flex flex-col items-center gap-4 text-center max-w-xs w-full animate-pop-in">
+          <div className="text-5xl">{copy.emoji}</div>
+          <h1 className="font-display text-2xl font-semibold">{copy.title}</h1>
+          <p className="text-mist text-sm font-semibold">{copy.body}</p>
+          {ended === 'invalid' && (
+            <button onClick={() => leave(`/join?code=${roomCode}`)} className="btn-primary py-3.5 text-base w-full">Gabung lagi</button>
+          )}
+          <button onClick={() => leave('/')} className={`py-3 text-sm w-full ${ended === 'invalid' ? 'btn-secondary' : 'btn-primary text-base py-3.5'}`}>Kembali ke Home</button>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-dvh flex flex-col">
       <ConnectionBanner status={connection} />
@@ -108,6 +145,24 @@ export default function PlayPage() {
             <p className="font-display text-xl font-semibold">Menunggu host...</p>
             <p className="text-mist text-sm mt-1 font-semibold">Game segera dimulai</p>
           </div>
+          {lobbyPlayers.length > 0 && (
+            <section aria-label="Pemain di room" className="card p-4 w-full max-w-xs">
+              <p className="tag mb-2">{lobbyPlayers.length} pemain sudah masuk</p>
+              <ul className="flex flex-wrap gap-1.5">
+                {lobbyPlayers.map((p) => (
+                  <li
+                    key={p.id}
+                    className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold max-w-[12rem] ${
+                      p.id === playerId ? 'bg-accent/15 border-accent text-white' : 'bg-white/5 border-line text-mist'
+                    }`}
+                  >
+                    <span className="truncate">{p.name}</span>
+                    {p.id === playerId && <span className="text-accent shrink-0">· kamu</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {team && (
             <div className="card px-5 py-2.5 flex items-center gap-2.5 animate-pop-in">
               <span className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color }} />
@@ -182,6 +237,16 @@ export default function PlayPage() {
               <p className="text-mist text-sm font-semibold">Menunggu soal berikutnya...</p>
             </div>
           )}
+
+          {phase === 'reveal' && standings && (() => {
+            const rank = myRank(standings, standings.mode === 'team' ? team?.id : playerId)
+            return rank && (
+              <p className="text-sm font-bold text-center" data-testid="my-rank">
+                {standings.mode === 'team' ? 'Timmu' : 'Kamu'} di posisi <span className="text-accent">#{rank.rank}</span> dari {rank.total}
+                <span className="text-mist"> · {rank.points} poin</span>
+              </p>
+            )
+          })()}
 
           {phase === 'reveal' && correctAnswer != null && question && (() => {
             if (question.gameType === 'bible_quiz') {

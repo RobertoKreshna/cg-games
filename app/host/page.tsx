@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createRoom, assignTeams, startGame, nextQuestion, revealQuestion, getHostState } from '@/lib/api'
+import { createRoom, assignTeams, startGame, nextQuestion, revealQuestion, kickPlayer, endGame, getHostState } from '@/lib/api'
 import { TIMER_MS, DEADLINE_GRACE_MS } from '@/lib/scoring'
 import { now } from '@/lib/clock'
 import { useWakeLock } from '@/lib/wake-lock'
@@ -9,6 +9,7 @@ import { StandingsCard } from '@/components/shared/Standings'
 import { JoinQr } from '@/components/shared/JoinQr'
 import { ConnectionBanner } from '@/components/shared/ConnectionBanner'
 import { HostQuestionCard } from '@/components/shared/HostQuestionCard'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import type { GameType, PublicQuestion, RoomMode, Standings } from '@/types/game'
@@ -62,6 +63,8 @@ export default function HostPage() {
   // When the host reveals on its own if players have not all answered (timer + grace).
   const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const [kickTarget, setKickTarget] = useState<PlayerInfo | null>(null)
+  const [confirmEnd, setConfirmEnd] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -148,8 +151,14 @@ export default function HostPage() {
       setDeadlineAt(null)
     } else if (e.event === 'game_finished') {
       setPhase('finished')
+    } else if (e.event === 'player_kicked') {
+      setPlayers((prev) => prev.filter((p) => p.id !== e.payload.player_id))
+      setAnsweredIds((prev) => { const next = new Set(prev); next.delete(e.payload.player_id); return next })
+    } else if (e.event === 'room_closed') {
+      clearHostSession(roomCode)
+      router.push('/')
     }
-  }, [gameType])
+  }, [gameType, roomCode, router])
 
   const connection = useGameChannel(roomCode || null, handleEvent, resync)
   useWakeLock(phase === 'lobby' || phase === 'playing')
@@ -240,6 +249,69 @@ export default function HostPage() {
       setLoading(false)
     }
   }
+
+  async function handleKick() {
+    if (!kickTarget) return
+    const target = kickTarget
+    setLoading(true)
+    setError('')
+    try {
+      await kickPlayer(roomCode, hostToken, target.id)
+      setPlayers((prev) => prev.filter((p) => p.id !== target.id))
+      setAnsweredIds((prev) => { const next = new Set(prev); next.delete(target.id); return next })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengeluarkan pemain.')
+    } finally {
+      setKickTarget(null)
+      setLoading(false)
+    }
+  }
+
+  async function handleEnd() {
+    setLoading(true)
+    setError('')
+    try {
+      const result = await endGame(roomCode, hostToken)
+      setConfirmEnd(false)
+      if (result.status === 'closed') {
+        clearHostSession(roomCode)
+        router.push('/')
+      } else {
+        if (result.session_id) setSessionId(result.session_id)
+        setPhase('finished')
+      }
+    } catch (e) {
+      setConfirmEnd(false)
+      setError(e instanceof Error ? e.message : 'Gagal mengakhiri game.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const dialogs = (
+    <>
+      <ConfirmDialog
+        open={!!kickTarget}
+        title={`Keluarkan ${kickTarget?.name ?? ''}?`}
+        description="Pemain ini keluar dari room dan skornya dihapus. Dia bisa gabung lagi lewat kode room selama game belum dimulai."
+        confirmLabel="Keluarkan"
+        danger
+        busy={loading}
+        onConfirm={handleKick}
+        onCancel={() => setKickTarget(null)}
+      />
+      <ConfirmDialog
+        open={confirmEnd}
+        title={phase === 'lobby' ? 'Tutup room?' : 'Akhiri game sekarang?'}
+        description={phase === 'lobby' ? 'Semua pemain akan keluar dan kode room tidak berlaku lagi.' : 'Skor sementara menjadi hasil akhir untuk semua pemain.'}
+        confirmLabel={phase === 'lobby' ? 'Tutup room' : 'Akhiri game'}
+        danger
+        busy={loading}
+        onConfirm={handleEnd}
+        onCancel={() => setConfirmEnd(false)}
+      />
+    </>
+  )
 
   if (phase === 'configure') {
     return (
@@ -349,16 +421,22 @@ export default function HostPage() {
               <p className="text-faint text-sm text-center py-4 w-full animate-pulse">Menunggu player...</p>
             )}
             {players.map((p) => (
-              <span key={p.id} className="animate-pop-in bg-raised border border-line rounded-full pl-2.5 pr-3 py-1.5 flex items-center gap-2 text-sm font-bold">
+              <button
+                key={p.id}
+                onClick={() => setKickTarget(p)}
+                aria-label={`Keluarkan ${p.name}`}
+                className="animate-pop-in bg-raised border border-line rounded-full pl-2.5 pr-3 py-1.5 flex items-center gap-2 text-sm font-bold cursor-pointer hover:border-rose-400/60 transition-colors"
+              >
                 {p.teamColor
-                  ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />
-                  : <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-accent" />
+                  ? <span aria-hidden className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />
+                  : <span aria-hidden className="w-2.5 h-2.5 rounded-full shrink-0 bg-accent" />
                 }
                 {p.name}
                 {p.teamName && <span className="text-faint text-[10px] uppercase tracking-wider">{p.teamName}</span>}
-              </span>
+              </button>
             ))}
           </div>
+          {players.length > 0 && <p className="text-faint text-xs font-semibold mt-3">Ketuk nama untuk mengeluarkan pemain</p>}
         </div>
 
         {mode === 'team' && (
@@ -393,7 +471,11 @@ export default function HostPage() {
         {mode === 'team' && !teamsAssigned && players.length > 0 && (
           <p className="text-mist text-xs font-semibold text-center mt-2">Acak tim dulu sebelum mulai</p>
         )}
+        <button onClick={() => setConfirmEnd(true)} disabled={loading} className="text-faint text-sm font-bold py-3 mt-1 cursor-pointer hover:text-rose-300 transition-colors">
+          Tutup room
+        </button>
         </div>
+        {dialogs}
       </main>
     )
   }
@@ -446,19 +528,22 @@ export default function HostPage() {
                 {players.map((p) => {
                   const done = questionStatus === 'reveal' || answeredIds.has(p.id)
                   return (
-                    <li
-                      key={p.id}
-                      title={p.teamName}
-                      className={`inline-flex items-center gap-1.5 max-w-[11rem] rounded-full border px-2.5 py-1 text-xs font-bold transition-colors ${
-                        done ? 'bg-emerald-400/15 border-emerald-400/50 text-white' : 'bg-white/5 border-line text-faint'
-                      }`}
-                    >
-                      <span aria-hidden className={`w-3.5 h-3.5 rounded-full shrink-0 grid place-items-center text-[8px] leading-none ${done ? 'bg-[#22C55E] text-white' : 'bg-white/10'}`}>
-                        {done && '✓'}
-                      </span>
-                      <span className="truncate">{p.name}</span>
-                      {p.teamColor && <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />}
-                      <span className="sr-only">{done ? ', sudah menjawab' : ', belum menjawab'}{p.teamName ? `, ${p.teamName}` : ''}</span>
+                    <li key={p.id}>
+                      <button
+                        onClick={() => setKickTarget(p)}
+                        title={p.teamName}
+                        aria-label={`Keluarkan ${p.name}`}
+                        className={`inline-flex items-center gap-1.5 max-w-[11rem] rounded-full border px-2.5 py-1.5 text-xs font-bold transition-colors cursor-pointer hover:border-rose-400/60 ${
+                          done ? 'bg-emerald-400/15 border-emerald-400/50 text-white' : 'bg-white/5 border-line text-faint'
+                        }`}
+                      >
+                        <span aria-hidden className={`w-3.5 h-3.5 rounded-full shrink-0 grid place-items-center text-[8px] leading-none ${done ? 'bg-[#22C55E] text-white' : 'bg-white/10'}`}>
+                          {done && '✓'}
+                        </span>
+                        <span className="truncate">{p.name}</span>
+                        {p.teamColor && <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />}
+                        <span className="sr-only">{done ? ', sudah menjawab' : ', belum menjawab'}{p.teamName ? `, ${p.teamName}` : ''}</span>
+                      </button>
                     </li>
                   )
                 })}
@@ -487,8 +572,12 @@ export default function HostPage() {
               Tampilkan jawaban sekarang
             </button>
           )}
+          <button onClick={() => setConfirmEnd(true)} disabled={loading} className="block mx-auto text-faint text-xs font-bold pt-3 cursor-pointer hover:text-rose-300 transition-colors">
+            Akhiri game
+          </button>
         </div>
         </div>
+        {dialogs}
       </main>
     )
   }

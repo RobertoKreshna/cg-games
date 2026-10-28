@@ -79,6 +79,23 @@ export function nextQuestion(sessionId: string, hostToken: string) {
   })
 }
 
+export function kickPlayer(code: string, hostToken: string, playerId: string) {
+  return call(`/rooms/${code}/kick`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-host-token': hostToken },
+    body: JSON.stringify({ player_id: playerId }),
+  })
+}
+
+/** Ends a running game, or closes the room if it has not started. Safe to repeat. */
+export function endGame(code: string, hostToken: string) {
+  return call(`/rooms/${code}/end`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-host-token': hostToken },
+    body: JSON.stringify({}),
+  })
+}
+
 export function revealQuestion(sessionId: string, hostToken: string) {
   return call(`/sessions/${sessionId}/reveal`, {
     method: 'POST',

@@ -3,6 +3,14 @@ import type { BibleQuizContent, EmojiStoryContent, GameType, Standings, TeamInfo
 
 export type Phase = 'lobby' | 'question' | 'answered' | 'reveal'
 
+/** Why the player can no longer take part: removed by the host, room closed, or token no longer valid. */
+export type Ended = 'kicked' | 'closed' | 'invalid'
+
+export interface LobbyPlayer {
+  id: string
+  name: string
+}
+
 export interface ActiveQuestion {
   questionId: string
   gameType: GameType
@@ -22,17 +30,19 @@ export interface GameState {
   correctAnswer: unknown
   standings: Standings | null
   team: TeamInfo | null
+  lobbyPlayers: LobbyPlayer[]
+  ended: Ended | null
 }
 
 export const INITIAL: GameState = {
   phase: 'lobby', sessionId: null, question: null, lastPoints: null, submittedAnswer: null, correctAnswer: null,
-  standings: null, team: null,
+  standings: null, team: null, lobbyPlayers: [], ended: null,
 }
 
 const PHASE_ORDER: Record<Phase, number> = { lobby: 0, question: 1, answered: 2, reveal: 3 }
 
 export interface ServerState {
-  phase: Phase | 'finished'
+  phase: Phase | 'finished' | 'closed'
   session_id?: string
   current_question?: {
     question_id: string
@@ -47,6 +57,7 @@ export interface ServerState {
   elapsed_ms?: number | null
   standings?: Standings | null
   team?: TeamInfo | null
+  players?: LobbyPlayer[]
 }
 
 // Merges the server's view into local state. For the same question the local phase never moves
@@ -55,10 +66,12 @@ export function applyServerState(prev: GameState, data: ServerState): GameState 
   const sessionId = data.session_id ?? prev.sessionId
   const cq = data.current_question
   const team = data.team ?? prev.team
-  if (!cq || data.phase === 'finished') return { ...prev, sessionId, team }
+  const lobbyPlayers = data.players ?? prev.lobbyPlayers
+  if (data.phase === 'closed') return { ...prev, sessionId, team, lobbyPlayers, ended: 'closed' }
+  if (!cq || data.phase === 'finished') return { ...prev, sessionId, team, lobbyPlayers }
 
   if (prev.question?.questionId === cq.question_id && PHASE_ORDER[prev.phase] > PHASE_ORDER[data.phase as Phase]) {
-    return { ...prev, sessionId, team, standings: data.standings ?? prev.standings }
+    return { ...prev, sessionId, team, lobbyPlayers, standings: data.standings ?? prev.standings }
   }
   const sameQuestion = prev.question?.questionId === cq.question_id
   return {
@@ -73,6 +86,8 @@ export function applyServerState(prev: GameState, data: ServerState): GameState 
       elapsedMs: data.elapsed_ms ?? 0,
     },
     team,
+    lobbyPlayers,
+    ended: prev.ended,
     standings: data.standings ?? (sameQuestion ? prev.standings : null),
     lastPoints: data.points ?? (sameQuestion ? prev.lastPoints : null),
     submittedAnswer: data.submitted_answer ?? (sameQuestion ? prev.submittedAnswer : null),

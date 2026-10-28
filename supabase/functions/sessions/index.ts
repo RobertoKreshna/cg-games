@@ -2,29 +2,15 @@ import { createDb } from '../_shared/db.ts'
 import { gameSessions, questions, answers, players, rooms } from '../_shared/schema.ts'
 import { corsResponse, json } from '../_shared/cors.ts'
 import { broadcastToRoom } from '../_shared/broadcast.ts'
+import { revealIfComplete, forceReveal, type CachedQ } from '../_shared/reveal.ts'
 import { computeStandings } from '../_shared/standings.ts'
 import { reportError } from '../_shared/report.ts'
 import {
-  TIMER_MS, effectiveTimeMs, isPastDeadline, scoreAnswer, publicContent, correctAnswerOf, shuffle,
-  type GameType,
+  TIMER_MS, effectiveTimeMs, isPastDeadline, scoreAnswer, publicContent, shuffle,
 } from '../_shared/game.ts'
-import { eq, and, sql } from 'npm:drizzle-orm'
+import { eq, and } from 'npm:drizzle-orm'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-type CachedQ = { id: string; gameType: GameType; content: unknown }
-
-// The ranking sent with every reveal. If it cannot be computed the reveal still goes out.
-async function revealPayload(db: ReturnType<typeof createDb>, room: { id: string; mode: 'individual' | 'team' }, sessionId: string, q: CachedQ) {
-  let standings = null
-  try {
-    standings = await computeStandings(db, room.id, room.mode, sessionId)
-  } catch (e) {
-    console.error('standings failed', e)
-    await reportError('standings', e)
-  }
-  return { question_id: q.id, correct_answer: correctAnswerOf(q.gameType, q.content), standings }
-}
 
 // One client per isolate. Creating it per request left a connection open for every call.
 const db = createDb()
@@ -151,12 +137,7 @@ Deno.serve(async (req) => {
       const q = cachedQs[row.session.currentQuestionIndex]
       if (!q) return json({ error: 'no active question' }, 409)
 
-      const [revealed] = await db.update(gameSessions).set({ status: 'reveal' })
-        .where(and(eq(gameSessions.id, sessionId), eq(gameSessions.status, 'question')))
-        .returning({ id: gameSessions.id })
-      if (!revealed) return json({ error: 'question is not active' }, 409)
-
-      await broadcastToRoom(row.room.code, 'question_reveal', await revealPayload(db, row.room, sessionId, q))
+      if (!(await forceReveal(db, row.room, sessionId, q))) return json({ error: 'question is not active' }, 409)
       return json({ status: 'reveal' })
     }
 
@@ -226,18 +207,7 @@ Deno.serve(async (req) => {
 
       await broadcastToRoom(sessionRow.room.code, 'player_answered', { player_id: player.id, name: player.name })
 
-      // Atomic reveal: only the request that successfully transitions status from 'question' → 'reveal'
-      // broadcasts question_reveal. This prevents the race where two concurrent submissions both see
-      // answeredCount < totalPlayers because the other's INSERT hasn't committed yet.
-      const [revealed] = await db
-        .update(gameSessions)
-        .set({ status: 'reveal' })
-        .where(sql`id = ${sessionId} AND status = 'question' AND (SELECT COUNT(*) FROM answers WHERE session_id = ${sessionId} AND question_id = ${question_id}) >= (SELECT COUNT(*) FROM players WHERE room_id = ${sessionRow.room.id})`)
-        .returning({ id: gameSessions.id })
-
-      if (revealed) {
-        await broadcastToRoom(sessionRow.room.code, 'question_reveal', await revealPayload(db, sessionRow.room, sessionId, current))
-      }
+      await revealIfComplete(db, sessionRow.room, sessionId, current)
 
       return json({ points, is_correct: scored.isCorrect })
     }

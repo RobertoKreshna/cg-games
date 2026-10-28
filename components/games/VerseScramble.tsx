@@ -75,13 +75,13 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-6">
-      <div className="flex justify-between items-center">
+    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-2">
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-night/90 backdrop-blur flex justify-between items-center">
         <div>
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
           <p className="font-display font-medium text-base mt-0.5">{content.reference}</p>
         </div>
-        <Timer durationMs={Math.max(500, TIMER_MS.verse_scramble - elapsedMs)} onExpire={handleExpire} />
+        <Timer compact durationMs={Math.max(500, TIMER_MS.verse_scramble - elapsedMs)} onExpire={handleExpire} />
       </div>
 
       <div className="min-h-24 bg-ink border-2 border-dashed border-line rounded-2xl p-3 flex flex-wrap gap-2">
@@ -113,19 +113,21 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
         ))}
       </div>
 
-      {sendError && !answered && (
-        <p role="alert" className="text-rose-300 text-xs font-semibold text-center">
-          Jawaban belum terkirim. Periksa koneksi, lalu coba lagi.
-        </p>
-      )}
+      <div className="sticky bottom-0 z-10 -mx-4 px-4 pt-4 pb-4 mt-auto bg-gradient-to-t from-night from-60% to-transparent flex flex-col gap-2">
+        {sendError && !answered && (
+          <p role="alert" className="text-rose-300 text-xs font-semibold text-center">
+            Jawaban belum terkirim. Periksa koneksi, lalu coba lagi.
+          </p>
+        )}
 
-      {!answered ? (
-        <button onClick={handleSubmit} disabled={placed.length === 0} className="btn-primary py-3 text-base w-full">
-          Submit
-        </button>
-      ) : (
-        <p className="text-center text-faint text-xs font-semibold animate-pulse">Menunggu soal berikutnya...</p>
-      )}
+        {!answered ? (
+          <button onClick={handleSubmit} disabled={placed.length === 0} className="btn-primary py-3 text-base w-full">
+            Submit
+          </button>
+        ) : (
+          <p className="text-center text-faint text-xs font-semibold animate-pulse">Menunggu soal berikutnya...</p>
+        )}
+      </div>
     </div>
   )
 }

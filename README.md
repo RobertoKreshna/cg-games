@@ -12,12 +12,14 @@ Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dim
 
 - Room system dengan 6-karakter kode; pemain gabung dengan **scan QR** atau buka link `/join?code=XXXXXX` (kode terisi otomatis)
 - Host mengontrol jalannya game (soal berikutnya, tampilkan jawaban lebih awal)
+- Host bisa mengeluarkan pemain (ketuk namanya), menutup room sebelum mulai, atau mengakhiri game di tengah jalan; pemain yang pergi tidak lagi menahan ronde
 - Layar host menampilkan soal, jawaban benar, dan referensi ayat setelah reveal (bahan diskusi); daftar pemain ringkas dan tombol aksi selalu terlihat, juga untuk 30 pemain
 - Mode Individual atau Tim (tim diacak otomatis); skor tim = rata-rata poin per anggota
 - Klasemen sementara tampil di setiap reveal, leaderboard di akhir
 - Hingga 30 player per room, nama harus unik di dalam room
 - Jawaban benar tidak dikirim ke HP pemain sampai soal di-reveal; waktu dihitung server
 - Jawaban otomatis ditampilkan saat waktu habis
+- Lobi pemain menampilkan siapa saja yang sudah masuk; timer dan tombol aksi tetap terlihat di HP kecil; peringkat sendiri tampil di atas layar reveal; halaman hasil langsung menggulir ke barismu
 - Pemain yang terputus bisa masuk lagi dengan nama yang sama; timer dan state dipulihkan setelah refresh
 - Banner "Koneksi terputus" muncul kalau koneksi hilang lebih dari beberapa detik, dan layar HP ditahan tetap menyala selama bermain
 - Error browser dan edge function dikirim ke Discord (opsional)

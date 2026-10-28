@@ -59,6 +59,15 @@ export default function ResultsPage() {
   }, [sessionId, attempt])
 
   const meId = me ? (mode === 'team' ? me.teamId : me.playerId) : null
+  // With a long list (30 players) your own row can be far down: bring it into view.
+  useEffect(() => {
+    if (loading || !meId) return
+    const row = document.querySelector('[data-me="true"]')
+    if (!row) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    row.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' })
+  }, [loading, meId, entries])
+
   const myRank = meId ? entries.findIndex((e) => (e.playerId ?? e.teamId) === meId) : -1
 
   return (
@@ -102,16 +111,19 @@ export default function ResultsPage() {
         )}
       </div>
 
-      <button
-        onClick={() => {
-          const code = getCurrentPlayerRoom()
-          if (code) clearPlayerSession(code)
-          router.push('/')
-        }}
-        className="btn-secondary py-4 text-base w-full mt-6 relative"
-      >
-        ← Kembali ke Home
-      </button>
+      {/* Stays reachable however long the list is. */}
+      <div className="sticky bottom-0 z-10 -mx-6 px-6 pt-6 pb-6 mt-auto bg-gradient-to-t from-night from-60% to-transparent">
+        <button
+          onClick={() => {
+            const code = getCurrentPlayerRoom()
+            if (code) clearPlayerSession(code)
+            router.push('/')
+          }}
+          className="btn-secondary py-4 text-base w-full"
+        >
+          ← Kembali ke Home
+        </button>
+      </div>
     </main>
   )
 }

@@ -12,10 +12,13 @@ export type GameEvent =
   | { event: 'player_answered'; payload: { player_id: string; name: string } }
   | { event: 'question_reveal'; payload: { question_id: string; correct_answer: unknown; standings?: Standings | null } }
   | { event: 'game_finished'; payload: { session_id: string } }
+  | { event: 'player_kicked'; payload: { player_id: string } }
+  | { event: 'room_closed'; payload: Record<string, never> }
 
 const EVENTS: GameEvent['event'][] = [
   'player_joined', 'teams_assigned', 'game_started',
   'question_show', 'player_answered', 'question_reveal', 'game_finished',
+  'player_kicked', 'room_closed',
 ]
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
