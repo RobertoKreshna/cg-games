@@ -5,6 +5,7 @@ import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import { getRoomState } from '@/lib/api'
 import { getPlayerSessionRaw, parsePlayerSession } from '@/lib/tokens'
 import { useWakeLock } from '@/lib/wake-lock'
+import { ConnectionBanner } from '@/components/shared/ConnectionBanner'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
 import { VerseScramble } from '@/components/games/VerseScramble'
 import { EmojiStory } from '@/components/games/EmojiStory'
@@ -72,7 +73,7 @@ export default function PlayPage() {
     }
   }, [router, playerId])
 
-  useGameChannel(roomCode, handleEvent, sync)
+  const connection = useGameChannel(roomCode, handleEvent, sync)
   useWakeLock(!!session)
 
   // Late replies after the reveal must not pull the player back to the "answered" screen.
@@ -97,6 +98,7 @@ export default function PlayPage() {
 
   return (
     <main className="min-h-dvh flex flex-col">
+      <ConnectionBanner status={connection} />
       {phase === 'lobby' && (
         <div className="flex-1 flex flex-col items-center justify-center gap-5 p-6">
           <div className="card w-32 h-32 flex items-center justify-center text-5xl">

@@ -6,6 +6,8 @@ import { TIMER_MS, DEADLINE_GRACE_MS } from '@/lib/scoring'
 import { now } from '@/lib/clock'
 import { useWakeLock } from '@/lib/wake-lock'
 import { StandingsCard } from '@/components/shared/Standings'
+import { JoinQr } from '@/components/shared/JoinQr'
+import { ConnectionBanner } from '@/components/shared/ConnectionBanner'
 import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import type { GameType, RoomMode, Standings } from '@/types/game'
@@ -139,7 +141,7 @@ export default function HostPage() {
     }
   }, [gameType])
 
-  useGameChannel(roomCode || null, handleEvent, resync)
+  const connection = useGameChannel(roomCode || null, handleEvent, resync)
   useWakeLock(phase === 'lobby' || phase === 'playing')
 
   // Players' own timers normally end the round; this covers anyone who left or lost connection.
@@ -316,8 +318,9 @@ export default function HostPage() {
   if (phase === 'lobby') {
     return (
       <main className="min-h-dvh flex flex-col p-6 items-center">
+        <ConnectionBanner status={connection} />
         <div className="w-full max-w-sm flex flex-col flex-1">
-        <div className="mb-8 text-center">
+        <div className="mb-5 text-center">
           <p className="tag mb-2">Kode Room</p>
           <h2 className="font-display text-6xl font-semibold text-accent tracking-[0.18em] drop-shadow-[0_4px_0_rgba(0,0,0,0.25)]">
             {roomCode}
@@ -326,6 +329,8 @@ export default function HostPage() {
             {GAME_OPTIONS.find((g) => g.type === gameType)?.label} · {mode === 'individual' ? 'Individual' : 'Tim'}
           </p>
         </div>
+
+        <JoinQr roomCode={roomCode} />
 
         <div className="card p-4 mb-4 flex-1 max-h-64 overflow-y-auto">
           <p className="tag mb-3">{players.length} player bergabung</p>
@@ -386,6 +391,7 @@ export default function HostPage() {
   if (phase === 'playing') {
     return (
       <main className="min-h-dvh flex flex-col p-6 items-center">
+        <ConnectionBanner status={connection} />
         <div className="w-full max-w-sm flex flex-col flex-1">
         <div className="flex justify-between items-center mb-8">
           <div>

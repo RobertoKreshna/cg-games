@@ -1,12 +1,20 @@
 'use client'
-import { useState } from 'react'
+import { use, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { joinRoom, rejoinRoom } from '@/lib/api'
 import { savePlayerSession, setCurrentPlayerRoom } from '@/lib/tokens'
+import { isCompleteRoomCode, normalizeRoomCode } from '@/lib/room-code'
 
-export default function JoinPage() {
+export default function JoinPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   const router = useRouter()
-  const [code, setCode] = useState('')
+  // A scanned QR code or shared link arrives as /join?code=XXXXXX.
+  const params = use(searchParams)
+  const [code, setCode] = useState(() => normalizeRoomCode(params.code))
+  const codeFromLink = isCompleteRoomCode(code)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -64,7 +72,7 @@ export default function JoinPage() {
               className="field-input font-display p-4 text-center text-3xl font-semibold tracking-[0.25em] uppercase w-full text-accent"
               placeholder="······"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
               maxLength={6}
             />
           </div>
@@ -75,6 +83,7 @@ export default function JoinPage() {
               className="field-input p-4 text-center text-base font-semibold w-full"
               placeholder="Nama..."
               value={name}
+              autoFocus={codeFromLink}
               onChange={(e) => setName(e.target.value)}
               maxLength={30}
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
