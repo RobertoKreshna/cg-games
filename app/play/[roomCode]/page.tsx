@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import { getRoomState } from '@/lib/api'
 import { getPlayerSessionRaw, parsePlayerSession } from '@/lib/tokens'
+import { useWakeLock } from '@/lib/wake-lock'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
 import { VerseScramble } from '@/components/games/VerseScramble'
 import { EmojiStory } from '@/components/games/EmojiStory'
@@ -72,6 +73,7 @@ export default function PlayPage() {
   }, [router, playerId])
 
   useGameChannel(roomCode, handleEvent, sync)
+  useWakeLock(!!session)
 
   // Late replies after the reveal must not pull the player back to the "answered" screen.
   const handleAnswered = useCallback((pts: number, sub: string) => {

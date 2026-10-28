@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createRoom, assignTeams, startGame, nextQuestion, revealQuestion, getHostState } from '@/lib/api'
 import { TIMER_MS, DEADLINE_GRACE_MS } from '@/lib/scoring'
 import { now } from '@/lib/clock'
+import { useWakeLock } from '@/lib/wake-lock'
 import { StandingsCard } from '@/components/shared/Standings'
 import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
@@ -139,6 +140,7 @@ export default function HostPage() {
   }, [gameType])
 
   useGameChannel(roomCode || null, handleEvent, resync)
+  useWakeLock(phase === 'lobby' || phase === 'playing')
 
   // Players' own timers normally end the round; this covers anyone who left or lost connection.
   useEffect(() => {
