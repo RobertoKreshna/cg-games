@@ -6,16 +6,16 @@
 }
 
 @theme {
-  /* Party Pop palette */
-  --color-night: #1e1b4b; /* page background */
-  --color-ink: #141038; /* inset / darker surfaces */
-  --color-surface: #2b2564; /* cards */
-  --color-raised: #363075; /* chips, hovered surfaces */
-  --color-line: rgba(255, 255, 255, 0.1);
-  --color-mist: #a5a3d6; /* secondary text */
-  --color-faint: #6e69ad; /* tertiary text */
-  --color-gold: #ffc700;
-  --color-grape: #7c3aed;
+  /* Ocean palette: deep navy, bright orange, candy tiles */
+  --color-night: #0b1f4b; /* page background */
+  --color-ink: #07153a; /* inset / darker surfaces */
+  --color-surface: #15296b; /* cards */
+  --color-raised: #1f3a8a; /* chips, hovered surfaces */
+  --color-line: rgba(255, 255, 255, 0.12);
+  --color-mist: #b3c3ee; /* secondary text */
+  --color-faint: #8da2dc; /* tertiary text */
+  --color-accent: #ffa62b; /* highlights: room code, points, selected */
+  --color-pick: #2563eb; /* selected toggles */
 
   --animate-pop-in: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-float: float 5s ease-in-out infinite;
@@ -38,10 +38,10 @@
 }
 
 body {
-  background-color: #1e1b4b;
+  background-color: #0b1f4b;
   background-image:
-    radial-gradient(60rem 40rem at 85% -10%, rgba(124, 58, 237, 0.4), transparent 60%),
-    radial-gradient(50rem 35rem at -10% 110%, rgba(225, 29, 72, 0.16), transparent 60%);
+    radial-gradient(60rem 40rem at 85% -10%, rgba(59, 130, 246, 0.4), transparent 60%),
+    radial-gradient(50rem 35rem at -10% 110%, rgba(255, 140, 0, 0.2), transparent 60%);
   background-attachment: fixed;
   color: #ffffff;
   font-family: var(--font-nunito), 'Nunito', sans-serif;
@@ -49,44 +49,46 @@ body {
 }
 
 @utility card {
-  background: #2b2564;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #15296b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
 }
 
 @utility btn-primary {
-  background: #7c3aed;
-  color: #ffffff;
+  background: #ff9f1c;
+  color: #0b1f4b;
   font-weight: 800;
   border-radius: 16px;
-  box-shadow: 0 5px 0 #55229e;
+  box-shadow: 0 5px 0 #b36b00;
   transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
-  &:hover { background: #8b5cf6; }
-  &:active { transform: translateY(4px); box-shadow: 0 1px 0 #55229e; }
-  &:disabled { opacity: 0.35; transform: none; box-shadow: 0 5px 0 #55229e; }
+  &:hover { background: #ffb13d; }
+  &:active { transform: translateY(4px); box-shadow: 0 1px 0 #b36b00; }
+  /* Muted blue rather than faded orange, which turns muddy brown on navy. */
+  &:disabled { background: #34498f; color: #8da2dc; transform: none; box-shadow: 0 5px 0 #15296b; }
 }
 
 @utility btn-secondary {
-  background: #ffc700;
-  color: #1e1b4b;
+  background: #1f3a8a;
+  color: #ffffff;
   font-weight: 800;
   border-radius: 16px;
-  box-shadow: 0 5px 0 #c29500;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 5px 0 #0a1640;
   transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
-  &:hover { background: #ffd333; }
-  &:active { transform: translateY(4px); box-shadow: 0 1px 0 #c29500; }
-  &:disabled { opacity: 0.35; transform: none; box-shadow: 0 5px 0 #c29500; }
+  &:hover { background: #2a4ba8; }
+  &:active { transform: translateY(4px); box-shadow: 0 1px 0 #0a1640; }
+  &:disabled { opacity: 0.35; transform: none; box-shadow: 0 5px 0 #0a1640; }
 }
 
 @utility field-input {
-  background: #141038;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: #07153a;
+  border: 2px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
   color: #ffffff;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  &:focus { border-color: #ffc700; box-shadow: 0 0 0 4px rgba(255, 199, 0, 0.15); }
-  &::placeholder { color: #55508f; }
+  &:focus { border-color: #ffa62b; box-shadow: 0 0 0 4px rgba(255, 166, 43, 0.18); }
+  &::placeholder { color: #6f86c8; }
 }
 
 @utility tag {
@@ -94,7 +96,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #8f8cc4;
+  color: #9fb4ea;
 }
 
 @media (prefers-reduced-motion: reduce) {

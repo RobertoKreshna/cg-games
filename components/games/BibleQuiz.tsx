@@ -19,10 +19,10 @@ interface Props {
 }
 
 const OPTIONS = [
-  { label: 'A', shape: '▲', bg: '#E11D48', shadow: '#9F1239', text: 'text-white' },
-  { label: 'B', shape: '◆', bg: '#2563EB', shadow: '#1E3A8A', text: 'text-white' },
-  { label: 'C', shape: '●', bg: '#FFC700', shadow: '#B78F00', text: 'text-[#3B2F00]' },
-  { label: 'D', shape: '■', bg: '#16A34A', shadow: '#14532D', text: 'text-white' },
+  { label: 'A', shape: '▲', bg: '#FF6B81', shadow: '#C23A52', text: 'text-night' },
+  { label: 'B', shape: '◆', bg: '#38BDF8', shadow: '#0E86B8', text: 'text-night' },
+  { label: 'C', shape: '●', bg: '#FFD43B', shadow: '#B8960C', text: 'text-night' },
+  { label: 'D', shape: '■', bg: '#4ADE80', shadow: '#1E9A52', text: 'text-night' },
 ]
 
 export function BibleQuiz({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, elapsedMs = 0, onAnswered }: Props) {

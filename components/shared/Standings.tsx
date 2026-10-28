@@ -17,7 +17,7 @@ export function StandingsCard({ standings, meId, limit = 5 }: StandingsCardProps
     <div
       key={entry.id}
       className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm ${
-        entry.id === meId ? 'bg-gold/15 border border-gold/60' : 'bg-white/5 border border-transparent'
+        entry.id === meId ? 'bg-accent/15 border border-accent/60' : 'bg-white/5 border border-transparent'
       }`}
     >
       <span className="w-5 text-center text-faint text-xs font-bold tabular-nums">{rank}</span>
@@ -26,7 +26,7 @@ export function StandingsCard({ standings, meId, limit = 5 }: StandingsCardProps
       )}
       <span className="flex-1 font-bold truncate">
         {entry.name}
-        {entry.id === meId && <span className="text-gold text-[10px] uppercase tracking-wider ml-2">Kamu</span>}
+        {entry.id === meId && <span className="text-accent text-[10px] uppercase tracking-wider ml-2">Kamu</span>}
       </span>
       <span className="font-bold tabular-nums">{entry.points}</span>
     </div>

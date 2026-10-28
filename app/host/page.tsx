@@ -250,7 +250,7 @@ export default function HostPage() {
                   onClick={() => setGameType(g.type)}
                   className={`flex items-center gap-4 p-4 rounded-2xl text-left transition-all border-2 cursor-pointer ${
                     gameType === g.type
-                      ? 'bg-raised border-gold'
+                      ? 'bg-raised border-accent'
                       : 'bg-surface border-line'
                   }`}
                 >
@@ -260,7 +260,7 @@ export default function HostPage() {
                     <p className="text-mist text-xs mt-0.5 font-semibold">{g.desc}</p>
                   </div>
                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    gameType === g.type ? 'border-gold bg-gold' : 'border-faint'
+                    gameType === g.type ? 'border-accent bg-accent' : 'border-faint'
                   }`}>
                     {gameType === g.type && <div className="w-1.5 h-1.5 rounded-full bg-night" />}
                   </div>
@@ -277,7 +277,7 @@ export default function HostPage() {
                   key={m}
                   onClick={() => setMode(m)}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                    mode === m ? 'bg-grape text-white' : 'text-mist'
+                    mode === m ? 'bg-pick text-white' : 'text-mist'
                   }`}
                 >
                   {m === 'individual' ? '👤 Individual' : '👥 Tim'}
@@ -294,7 +294,7 @@ export default function HostPage() {
                   key={n}
                   onClick={() => setQuestionCount(n)}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                    questionCount === n ? 'bg-grape text-white' : 'text-mist'
+                    questionCount === n ? 'bg-pick text-white' : 'text-mist'
                   }`}
                 >
                   {n}
@@ -319,7 +319,7 @@ export default function HostPage() {
         <div className="w-full max-w-sm flex flex-col flex-1">
         <div className="mb-8 text-center">
           <p className="tag mb-2">Kode Room</p>
-          <h2 className="font-display text-6xl font-semibold text-gold tracking-[0.18em] drop-shadow-[0_4px_0_rgba(0,0,0,0.25)]">
+          <h2 className="font-display text-6xl font-semibold text-accent tracking-[0.18em] drop-shadow-[0_4px_0_rgba(0,0,0,0.25)]">
             {roomCode}
           </h2>
           <p className="text-mist text-xs mt-3 font-bold">
@@ -337,7 +337,7 @@ export default function HostPage() {
               <span key={p.id} className="animate-pop-in bg-raised border border-line rounded-full pl-2.5 pr-3 py-1.5 flex items-center gap-2 text-sm font-bold">
                 {p.teamColor
                   ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.teamColor }} />
-                  : <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-gold" />
+                  : <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-accent" />
                 }
                 {p.name}
                 {p.teamName && <span className="text-faint text-[10px] uppercase tracking-wider">{p.teamName}</span>}
@@ -395,7 +395,7 @@ export default function HostPage() {
             </p>
           </div>
           {totalQ > 0 && (
-            <span className="bg-raised border border-line rounded-full px-3 py-1 text-gold text-sm font-bold tabular-nums">
+            <span className="bg-raised border border-line rounded-full px-3 py-1 text-accent text-sm font-bold tabular-nums">
               {currentQ} / {totalQ}
             </span>
           )}

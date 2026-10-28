@@ -92,7 +92,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
             <button
               key={pos}
               onClick={() => remove(pos)}
-              className="bg-gold text-night px-3 py-1.5 rounded-lg font-bold text-sm active:scale-95 transition-transform cursor-pointer shadow-[0_2px_0_#C29500]"
+              className="bg-accent text-night px-3 py-1.5 rounded-lg font-bold text-sm active:scale-95 transition-transform cursor-pointer shadow-[0_2px_0_#b36b00]"
             >
               {content.words[wordIndex]}
             </button>

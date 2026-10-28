@@ -61,7 +61,7 @@ export default function JoinPage() {
           <div className="flex flex-col gap-1.5">
             <label className="tag">Kode Room</label>
             <input
-              className="field-input font-display p-4 text-center text-3xl font-semibold tracking-[0.25em] uppercase w-full text-gold"
+              className="field-input font-display p-4 text-center text-3xl font-semibold tracking-[0.25em] uppercase w-full text-accent"
               placeholder="······"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}

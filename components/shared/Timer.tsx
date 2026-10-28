@@ -30,7 +30,7 @@ export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
   const pct = remainingMs / durationMs
   const seconds = Math.ceil(remainingMs / 1000)
   const circumference = 2 * Math.PI * 26
-  const color = pct > 0.45 ? '#A3E635' : pct > 0.2 ? '#FBBF24' : '#FB7185'
+  const color = pct > 0.45 ? '#4ADE80' : pct > 0.2 ? '#FFD43B' : '#FF6B81'
 
   return (
     <div className={`flex items-center justify-center ${className}`}>

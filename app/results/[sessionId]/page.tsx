@@ -6,7 +6,7 @@ import { clearPlayerSession, getCurrentPlayerRoom, getPlayerSession } from '@/li
 import { Leaderboard } from '@/components/shared/Leaderboard'
 import type { LeaderboardEntry, RoomMode } from '@/types/game'
 
-const CONFETTI_COLORS = ['#E11D48', '#2563EB', '#FFC700', '#16A34A', '#7C3AED', '#F0ABFC']
+const CONFETTI_COLORS = ['#FF6B81', '#38BDF8', '#FFD43B', '#4ADE80', '#FF9F1C', '#93C5FD']
 const CONFETTI = Array.from({ length: 18 }, (_, i) => ({
   left: `${(i * 137.5) % 100}%`,
   color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
@@ -88,7 +88,7 @@ export default function ResultsPage() {
           <>
             {myRank >= 0 && (
               <p className="text-center text-sm font-bold mb-4" role="status">
-                Posisimu: <span className="text-gold">#{myRank + 1}</span> dari {entries.length}
+                Posisimu: <span className="text-accent">#{myRank + 1}</span> dari {entries.length}
                 {mode === 'team' && <span className="text-mist"> (tim)</span>}
               </p>
             )}

@@ -8,7 +8,7 @@ interface LeaderboardProps {
 }
 
 const PODIUM = [
-  { medal: '🥇', accent: 'border-gold bg-gold/10' },
+  { medal: '🥇', accent: 'border-accent bg-accent/10' },
   { medal: '🥈', accent: 'border-[#C0C0C0]/50 bg-white/5' },
   { medal: '🥉', accent: 'border-[#CD7F32]/50 bg-[#CD7F32]/10' },
 ]
@@ -24,7 +24,7 @@ export function Leaderboard({ entries, mode, meId }: LeaderboardProps) {
             key={entry.playerId ?? entry.teamId}
             className={`animate-pop-in flex items-center gap-3 rounded-2xl p-4 border ${
               podium ? podium.accent : 'bg-surface border-line'
-            } ${i === 0 ? 'py-5' : ''} ${isMe ? 'ring-2 ring-gold' : ''}`}
+            } ${i === 0 ? 'py-5' : ''} ${isMe ? 'ring-2 ring-accent' : ''}`}
             style={{ animationDelay: `${Math.min(i, 10) * 70}ms` }}
           >
             <span className="w-8 text-center shrink-0">
@@ -38,9 +38,9 @@ export function Leaderboard({ entries, mode, meId }: LeaderboardProps) {
             )}
             <span className={`flex-1 font-bold ${i === 0 ? 'font-display text-lg font-semibold' : 'text-sm'}`}>
               {entry.playerName ?? entry.teamName}
-              {isMe && <span className="text-gold text-[10px] font-bold uppercase tracking-wider ml-2">Kamu</span>}
+              {isMe && <span className="text-accent text-[10px] font-bold uppercase tracking-wider ml-2">Kamu</span>}
             </span>
-            <span className={`font-bold shrink-0 tabular-nums ${i === 0 ? 'text-gold text-lg' : 'text-sm'}`}>
+            <span className={`font-bold shrink-0 tabular-nums ${i === 0 ? 'text-accent text-lg' : 'text-sm'}`}>
               {entry.totalPoints ?? 0}
               <span className="text-faint font-semibold text-xs ml-0.5">pts</span>
             </span>

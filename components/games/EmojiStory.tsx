@@ -100,7 +100,7 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
               disabled={answered || isFull}
               className={`py-3 px-4 rounded-xl text-sm font-bold text-left border-2 transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-grape border-grape text-white shadow-[0_3px_0_#55229E]'
+                  ? 'bg-pick border-pick text-white shadow-[0_3px_0_#1e3a8a]'
                   : 'bg-surface border-line'
               } ${isFull ? 'opacity-25' : ''}`}
             >

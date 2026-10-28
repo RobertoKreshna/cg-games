@@ -87,7 +87,7 @@ export default function PlayPage() {
       <main className="min-h-dvh flex items-center justify-center p-6">
         <div className="card p-8 flex flex-col items-center gap-4 text-center max-w-xs w-full">
           <p className="text-mist text-sm font-semibold">Session tidak ditemukan.</p>
-          <a href="/join" className="text-gold text-sm font-bold underline underline-offset-4">
+          <a href="/join" className="text-accent text-sm font-bold underline underline-offset-4">
             Join ulang
           </a>
         </div>
@@ -114,7 +114,7 @@ export default function PlayPage() {
           )}
           <div className="card px-5 py-2.5 flex items-center gap-2">
             <span className="tag">Room</span>
-            <span className="font-display text-gold font-semibold tracking-widest text-xl">{roomCode}</span>
+            <span className="font-display text-accent font-semibold tracking-widest text-xl">{roomCode}</span>
           </div>
         </div>
       )}
@@ -171,7 +171,7 @@ export default function PlayPage() {
                 {lastPoints >= 800 ? '🎉' : lastPoints >= 500 ? '🔥' : lastPoints > 0 ? '👍' : '😅'}
               </div>
               <div className="card px-10 py-6 flex flex-col items-center gap-1 text-center animate-pop-in">
-                <span className="font-display text-5xl font-semibold text-gold tabular-nums">+{lastPoints}</span>
+                <span className="font-display text-5xl font-semibold text-accent tabular-nums">+{lastPoints}</span>
                 <span className="tag">poin</span>
               </div>
             </>
