@@ -42,11 +42,15 @@ describe('calcEmojiStoryPoints', () => {
   it('returns 1000 for all 5 correct words selected', () => {
     expect(calcEmojiStoryPoints([0, 1, 2, 3, 4], [0, 1, 2, 3, 4])).toBe(1000)
   })
-  it('returns 600 for 3 of 5 correct words selected', () => {
-    expect(calcEmojiStoryPoints([0, 1, 2, 5, 6], [0, 1, 2, 3, 4])).toBe(600)
+  it('returns 700 for 4 of 5 correct (1 wrong removes 100)', () => {
+    expect(calcEmojiStoryPoints([0, 1, 2, 3, 6], [0, 1, 2, 3, 4])).toBe(700)
   })
-  it('returns 200 for 1 of 5 correct words selected', () => {
-    expect(calcEmojiStoryPoints([0, 5, 6, 7, 8], [0, 1, 2, 3, 4])).toBe(200)
+  it('returns 400 for 3 of 5 correct words selected', () => {
+    expect(calcEmojiStoryPoints([0, 1, 2, 5, 6], [0, 1, 2, 3, 4])).toBe(400)
+  })
+  it('never goes below 0 when most picks are wrong', () => {
+    expect(calcEmojiStoryPoints([0, 5, 6, 7, 8], [0, 1, 2, 3, 4])).toBe(0)
+    expect(calcEmojiStoryPoints([5, 6, 7, 8, 9], [0, 1, 2, 3, 4])).toBe(0)
   })
   it('returns 0 for no correct words selected', () => {
     expect(calcEmojiStoryPoints([5, 6, 7, 8, 9], [0, 1, 2, 3, 4])).toBe(0)

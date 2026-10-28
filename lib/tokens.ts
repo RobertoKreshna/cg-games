@@ -1,4 +1,4 @@
-interface PlayerSession {
+export interface PlayerSession {
   sessionToken: string
   playerId: string
   gameType?: string
@@ -16,8 +16,20 @@ export function savePlayerSession(roomCode: string, data: PlayerSession): void {
 }
 
 export function getPlayerSession(roomCode: string): PlayerSession | null {
+  return parsePlayerSession(getPlayerSessionRaw(roomCode))
+}
+
+/** The stored string itself, which is a stable snapshot for useSyncExternalStore. */
+export function getPlayerSessionRaw(roomCode: string): string | null {
   try {
-    const raw = localStorage.getItem(`player:${roomCode}`)
+    return localStorage.getItem(`player:${roomCode}`)
+  } catch {
+    return null
+  }
+}
+
+export function parsePlayerSession(raw: string | null): PlayerSession | null {
+  try {
     return raw ? JSON.parse(raw) : null
   } catch {
     return null

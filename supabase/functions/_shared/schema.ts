@@ -49,6 +49,7 @@ export const gameSessions = pgTable('game_sessions', {
   questionIds: jsonb('question_ids'),
   status: sessionStatusEnum('status').notNull().default('waiting'),
   startedAt: timestamp('started_at', { withTimezone: true }),
+  questionStartedAt: timestamp('question_started_at', { withTimezone: true }),
 })
 
 export const answers = pgTable('answers', {

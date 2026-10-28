@@ -1,7 +1,9 @@
 'use client'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Timer } from '@/components/shared/Timer'
 import { submitAnswer } from '@/lib/api'
+import { now } from '@/lib/clock'
+import { TIMER_MS, shuffle } from '@/lib/scoring'
 import type { EmojiStoryContent } from '@/types/game'
 
 interface Props {
@@ -17,15 +19,11 @@ interface Props {
 export function EmojiStory({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
   const [selected, setSelected] = useState<number[]>([])
   const [answered, setAnswered] = useState(false)
-  const startRef = useRef(Date.now())
-  const shuffledIndices = useMemo(() => {
-    const arr = content.words.map((_, i) => i)
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]]
-    }
-    return arr
-  }, [content.words.length])
+  const startRef = useRef(0)
+  useEffect(() => {
+    startRef.current = now()
+  }, [])
+  const [shuffledIndices] = useState<number[]>(() => shuffle(content.words.map((_, i) => i)))
 
   function toggleWord(index: number) {
     if (answered) return
@@ -52,13 +50,13 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
   async function handleSubmit() {
     if (answered || selected.length !== 5) return
     setAnswered(true)
-    await doSubmit(selected, Date.now() - startRef.current)
+    await doSubmit(selected, now() - startRef.current)
   }
 
   async function handleExpire() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(selected, 20000)
+    await doSubmit(selected, TIMER_MS.emoji_story)
   }
 
   const remaining = 5 - selected.length
@@ -72,7 +70,7 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
             {answered ? 'Menunggu soal berikutnya...' : remaining > 0 ? `Pilih ${remaining} lagi` : 'Siap submit! 🔥'}
           </p>
         </div>
-        <Timer durationMs={20000} onExpire={handleExpire} />
+        <Timer durationMs={TIMER_MS.emoji_story} onExpire={handleExpire} />
       </div>
 
       <div className="card w-full py-5 flex flex-col items-center gap-1.5">

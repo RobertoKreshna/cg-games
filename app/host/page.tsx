@@ -1,19 +1,32 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createRoom, assignTeams, startGame, nextQuestion, getHostState } from '@/lib/api'
+import { createRoom, assignTeams, startGame, nextQuestion, revealQuestion, getHostState } from '@/lib/api'
+import { TIMER_MS } from '@/lib/scoring'
 import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import type { GameType, RoomMode } from '@/types/game'
 
 type HostPhase = 'configure' | 'lobby' | 'playing' | 'finished'
 
+interface HostState {
+  phase: 'lobby' | 'playing' | 'finished'
+  gameType: GameType
+  mode: RoomMode
+  players?: PlayerInfo[]
+  teamsAssigned?: boolean
+  session_id?: string
+  questionStatus?: 'idle' | 'showing' | 'reveal'
+  currentQ?: number
+  totalQ?: number
+}
+
 interface PlayerInfo { id: string; name: string; teamName?: string; teamColor?: string }
 
 const GAME_OPTIONS: { type: GameType; emoji: string; label: string; desc: string }[] = [
-  { type: 'bible_quiz', emoji: '📖', label: 'Bible Quiz', desc: 'Pilihan ganda · 15 detik' },
-  { type: 'verse_scramble', emoji: '📝', label: 'Verse Scramble', desc: 'Susun ayat · 30 detik' },
-  { type: 'emoji_story', emoji: '🎭', label: 'Emoji Story', desc: 'Tebak kisah · 20 detik' },
+  { type: 'bible_quiz', emoji: '📖', label: 'Bible Quiz', desc: `Pilihan ganda · ${TIMER_MS.bible_quiz / 1000} detik` },
+  { type: 'verse_scramble', emoji: '📝', label: 'Verse Scramble', desc: `Susun ayat · ${TIMER_MS.verse_scramble / 1000} detik` },
+  { type: 'emoji_story', emoji: '🎭', label: 'Emoji Story', desc: `Tebak kisah · ${TIMER_MS.emoji_story / 1000} detik` },
 ]
 
 export default function HostPage() {
@@ -35,38 +48,52 @@ export default function HostPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Applies the server's view of the room. `initial` is the first load after a page refresh.
+  const applyHostState = useCallback((code: string, token: string, savedSessionId: string | undefined, data: HostState, initial: boolean) => {
+    setPlayers(data.players ?? [])
+    setTeamsAssigned(data.teamsAssigned ?? false)
+    if (data.phase === 'playing') {
+      setSessionId(data.session_id ?? savedSessionId ?? '')
+      setQuestionStatus(data.questionStatus ?? 'idle')
+      setCurrentQ(data.currentQ ?? 0)
+      setTotalQ(data.totalQ ?? 0)
+      setPhase('playing')
+    } else if (data.phase === 'finished') {
+      setSessionId(data.session_id ?? savedSessionId ?? '')
+      setPhase('finished')
+      clearHostSession(code) // game over, no need to restore next time
+    } else if (initial) {
+      setPhase('lobby')
+    }
+    if (initial) {
+      setRoomCode(code)
+      setHostToken(token)
+      setGameType(data.gameType)
+      setMode(data.mode)
+    }
+  }, [])
+
   useEffect(() => {
     const code = getCurrentHostRoom()
     if (!code) return
     const saved = getHostSession(code)
     if (!saved) return
-    getHostState(code, saved.hostToken).then((data) => {
-      setRoomCode(code)
-      setHostToken(saved.hostToken)
-      setGameType(data.gameType)
-      setMode(data.mode)
-      setPlayers(data.players ?? [])
-      setTeamsAssigned(data.teamsAssigned ?? false)
-      if (data.phase === 'playing') {
-        setSessionId(saved.sessionId ?? '')
-        setQuestionStatus(data.questionStatus ?? 'idle')
-        setCurrentQ(data.currentQ ?? 0)
-        setTotalQ(data.totalQ ?? 0)
-        setPhase('playing')
-      } else if (data.phase === 'finished') {
-        setSessionId(saved.sessionId ?? '')
-        setPhase('finished')
-        clearHostSession(code) // game over, no need to restore next time
-      } else {
-        setPhase('lobby')
-      }
-    }).catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    getHostState(code, saved.hostToken)
+      .then((data) => applyHostState(code, saved.hostToken, saved.sessionId, data, true))
+      .catch(() => {})
+  }, [applyHostState])
+
+  // After a dropped connection, re-read the room: events sent in the gap are not replayed.
+  const resync = useCallback(() => {
+    if (!roomCode || !hostToken) return
+    getHostState(roomCode, hostToken)
+      .then((data) => applyHostState(roomCode, hostToken, sessionId || undefined, data, false))
+      .catch(() => {})
+  }, [roomCode, hostToken, sessionId, applyHostState])
 
   const handleEvent = useCallback((e: GameEvent) => {
     if (e.event === 'player_joined') {
-      setPlayers((prev) => [...prev, { id: e.payload.player_id, name: e.payload.name }])
+      setPlayers((prev) => prev.some((p) => p.id === e.payload.player_id) ? prev : [...prev, { id: e.payload.player_id, name: e.payload.name }])
     } else if (e.event === 'teams_assigned') {
       const updated: PlayerInfo[] = []
       for (const team of e.payload.teams) {
@@ -90,7 +117,7 @@ export default function HostPage() {
     }
   }, [])
 
-  useGameChannel(roomCode || null, handleEvent)
+  useGameChannel(roomCode || null, handleEvent, resync)
 
   async function handleCreate() {
     setLoading(true)
@@ -131,6 +158,19 @@ export default function HostPage() {
       setPhase('playing')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memulai game.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleReveal() {
+    if (!sessionId) return
+    setLoading(true)
+    setError('')
+    try {
+      await revealQuestion(sessionId, hostToken)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menampilkan jawaban.')
     } finally {
       setLoading(false)
     }
@@ -367,6 +407,11 @@ export default function HostPage() {
         >
           {loading ? '...' : questionStatus === 'idle' ? '▶ Mulai' : '⏭ Soal Berikutnya'}
         </button>
+        {questionStatus === 'showing' && (
+          <button onClick={handleReveal} disabled={loading} className="btn-secondary py-3 text-sm w-full mt-2">
+            Tampilkan jawaban sekarang
+          </button>
+        )}
         </div>
       </main>
     )

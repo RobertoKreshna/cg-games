@@ -49,6 +49,14 @@ export function nextQuestion(sessionId: string, hostToken: string) {
   })
 }
 
+export function revealQuestion(sessionId: string, hostToken: string) {
+  return call(`/sessions/${sessionId}/reveal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-host-token': hostToken },
+    body: JSON.stringify({}),
+  })
+}
+
 export function submitAnswer(
   sessionId: string,
   sessionToken: string,

@@ -1,47 +1,23 @@
 import { createDb } from '../_shared/db.ts'
 import { gameSessions, questions, answers, players, rooms, teams } from '../_shared/schema.ts'
 import { corsResponse, json } from '../_shared/cors.ts'
+import { broadcastToRoom } from '../_shared/broadcast.ts'
+import {
+  TIMER_MS, effectiveTimeMs, isPastDeadline, scoreAnswer, publicContent, correctAnswerOf, shuffle,
+  type GameType,
+} from '../_shared/game.ts'
 import { eq, and, sql } from 'npm:drizzle-orm'
 
-// Scoring — duplicated from lib/scoring.ts (Deno cannot import from Next.js lib/)
-function calcBibleQuizPoints(timeMs: number): number {
-  return Math.max(0, Math.round(1000 - (timeMs / 15000) * 1000))
-}
+type CachedQ = { id: string; gameType: GameType; content: unknown }
 
-function calcVerseScramblePoints(correctWords: number, totalWords: number, timeMs: number): number {
-  const accuracy = correctWords / totalWords
-  const speedMultiplier = 1.0 - (timeMs / 30000) * 0.5
-  return Math.max(0, Math.round(accuracy * 1000 * speedMultiplier))
-}
-
-function calcEmojiStoryPoints(selected: number[], correct: number[]): number {
-  const correctCount = selected.filter((i: number) => correct.includes(i)).length
-  return Math.round((correctCount / correct.length) * 1000)
-}
-
-async function broadcastToRoom(roomCode: string, event: string, payload: unknown) {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${supabaseKey}`,
-      apikey: supabaseKey,
-    },
-    body: JSON.stringify({
-      messages: [{ topic: `room:${roomCode}`, event, payload }],
-    }),
-  })
-}
+// One client per isolate. Creating it per request left a connection open for every call.
+const db = createDb()
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse()
 
   const url = new URL(req.url)
   const segments = url.pathname.replace(/^.*\/sessions\/?/, '').split('/').filter(Boolean)
-  const db = createDb()
-
   try {
     // GET /sessions/:id/leaderboard
     if (req.method === 'GET' && segments.length === 2 && segments[1] === 'leaderboard') {
@@ -65,7 +41,7 @@ Deno.serve(async (req) => {
           .innerJoin(players, eq(answers.playerId, players.id))
           .where(eq(answers.sessionId, sessionId))
           .groupBy(answers.playerId, players.name)
-          .orderBy(sql`sum(${answers.points}) desc`)
+          .orderBy(sql`sum(${answers.points}) desc, sum(${answers.timeTakenMs}) asc`)
         return json({ mode: 'individual', leaderboard })
       } else {
         const leaderboard = await db
@@ -80,7 +56,7 @@ Deno.serve(async (req) => {
           .innerJoin(teams, eq(players.teamId, teams.id))
           .where(eq(answers.sessionId, sessionId))
           .groupBy(teams.id, teams.name, teams.color)
-          .orderBy(sql`sum(${answers.points}) desc`)
+          .orderBy(sql`sum(${answers.points}) desc, sum(${answers.timeTakenMs}) asc`)
         return json({ mode: 'team', leaderboard })
       }
     }
@@ -97,8 +73,11 @@ Deno.serve(async (req) => {
         .where(and(eq(gameSessions.id, sessionId), eq(rooms.hostToken, hostToken ?? '')))
       if (!row) return json({ error: 'unauthorized' }, 403)
 
+      const { status, currentQuestionIndex } = row.session
+      if (status === 'finished') return json({ error: 'game already finished' }, 409)
+      if (status === 'question') return json({ error: 'question still in progress' }, 409)
+
       // Cache stores full question objects — no per-question DB lookup after first call
-      type CachedQ = { id: string; gameType: string; content: unknown }
       let cachedQs: CachedQ[] = (row.session.questionIds as CachedQ[] | null) ?? []
       const isFirstCall = cachedQs.length === 0
 
@@ -107,40 +86,76 @@ Deno.serve(async (req) => {
           .select({ id: questions.id, gameType: questions.gameType, content: questions.content })
           .from(questions)
           .where(eq(questions.gameType, row.room.gameType))
-          .orderBy(questions.orderIndex)
-        const shuffled = [...pool].sort(() => Math.random() - 0.5)
-        cachedQs = shuffled.slice(0, row.room.questionCount)
+        cachedQs = shuffle(pool).slice(0, row.room.questionCount)
       }
 
-      const nextIndex = row.session.status === 'waiting' ? 0 : row.session.currentQuestionIndex + 1
+      const nextIndex = status === 'waiting' ? 0 : currentQuestionIndex + 1
+
+      // Every transition is guarded by the status/index we read, so two quick taps on "next"
+      // cannot skip a question: only one of them matches and the other gets 409.
+      const unchanged = and(
+        eq(gameSessions.id, sessionId),
+        eq(gameSessions.status, status),
+        eq(gameSessions.currentQuestionIndex, currentQuestionIndex),
+      )
 
       if (nextIndex >= cachedQs.length) {
-        await Promise.all([
-          db.update(gameSessions).set({ status: 'finished' }).where(eq(gameSessions.id, sessionId)),
-          db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, row.room.id)),
-        ])
+        const [finished] = await db.update(gameSessions).set({ status: 'finished' }).where(unchanged)
+          .returning({ id: gameSessions.id })
+        if (!finished) return json({ error: 'session changed, retry' }, 409)
+        await db.update(rooms).set({ status: 'finished' }).where(eq(rooms.id, row.room.id))
         await broadcastToRoom(row.room.code, 'game_finished', { session_id: sessionId })
         return json({ status: 'finished', session_id: sessionId })
       }
 
       const q = cachedQs[nextIndex]
-      const sessionSet = isFirstCall
-        ? { questionIds: cachedQs as unknown, currentQuestionIndex: nextIndex, status: 'question' as const }
-        : { currentQuestionIndex: nextIndex, status: 'question' as const }
+      const [advanced] = await db.update(gameSessions).set({
+        ...(isFirstCall ? { questionIds: cachedQs as unknown } : {}),
+        currentQuestionIndex: nextIndex,
+        status: 'question',
+        questionStartedAt: new Date(),
+      }).where(unchanged).returning({ id: gameSessions.id })
+      if (!advanced) return json({ error: 'session changed, retry' }, 409)
 
-      // Parallel: DB update + broadcast (no separate question SELECT needed)
-      await Promise.all([
-        db.update(gameSessions).set(sessionSet).where(eq(gameSessions.id, sessionId)),
-        broadcastToRoom(row.room.code, 'question_show', {
-          question_index: nextIndex,
-          question_id: q.id,
-          game_type: q.gameType,
-          content: q.content,
-          total_questions: cachedQs.length,
-        }),
-      ])
+      // Players get the question without its answer; that is sent with question_reveal.
+      await broadcastToRoom(row.room.code, 'question_show', {
+        session_id: sessionId,
+        question_index: nextIndex,
+        question_id: q.id,
+        game_type: q.gameType,
+        content: publicContent(q.content),
+        total_questions: cachedQs.length,
+      })
 
       return json({ status: 'question', question_index: nextIndex, question_id: q.id })
+    }
+
+    // POST /sessions/:id/reveal → end the current question now (host only)
+    if (req.method === 'POST' && segments.length === 2 && segments[1] === 'reveal') {
+      const sessionId = segments[0]
+      const hostToken = req.headers.get('x-host-token')
+
+      const [row] = await db
+        .select({ session: gameSessions, room: rooms })
+        .from(gameSessions)
+        .innerJoin(rooms, eq(gameSessions.roomId, rooms.id))
+        .where(and(eq(gameSessions.id, sessionId), eq(rooms.hostToken, hostToken ?? '')))
+      if (!row) return json({ error: 'unauthorized' }, 403)
+
+      const cachedQs = (row.session.questionIds as CachedQ[] | null) ?? []
+      const q = cachedQs[row.session.currentQuestionIndex]
+      if (!q) return json({ error: 'no active question' }, 409)
+
+      const [revealed] = await db.update(gameSessions).set({ status: 'reveal' })
+        .where(and(eq(gameSessions.id, sessionId), eq(gameSessions.status, 'question')))
+        .returning({ id: gameSessions.id })
+      if (!revealed) return json({ error: 'question is not active' }, 409)
+
+      await broadcastToRoom(row.room.code, 'question_reveal', {
+        question_id: q.id,
+        correct_answer: correctAnswerOf(q.gameType, q.content),
+      })
+      return json({ status: 'reveal' })
     }
 
     // POST /sessions/:id/answer → submit answer (player)
@@ -150,7 +165,11 @@ Deno.serve(async (req) => {
       const body = await req.json().catch(() => null)
       if (!body) return json({ error: 'invalid request body' }, 400)
       const { question_id, submitted_answer, time_taken_ms } = body
-      if (!question_id || submitted_answer == null || time_taken_ms == null) {
+      if (
+        typeof question_id !== 'string' ||
+        typeof submitted_answer !== 'string' || submitted_answer.length > 500 ||
+        typeof time_taken_ms !== 'number' || !Number.isFinite(time_taken_ms)
+      ) {
         return json({ error: 'missing required fields' }, 400)
       }
 
@@ -167,50 +186,41 @@ Deno.serve(async (req) => {
       if (!sessionRow) return json({ error: 'session not found' }, 404)
       if (player.roomId !== sessionRow.room.id) return json({ error: 'unauthorized' }, 403)
 
-      // Validate question belongs to this session using the cached question list
-      type CachedQ = { id: string; gameType: string; content: unknown }
-      const cachedQs = (sessionRow.session.questionIds as CachedQ[] | null) ?? []
-      const cachedQuestion = cachedQs.find((q: CachedQ) => q.id === question_id)
-      if (!cachedQuestion) return json({ error: 'question not in this session' }, 400)
-
-      const content = cachedQuestion.content as Record<string, unknown>
-      const gameType = cachedQuestion.gameType
-      let isCorrect = false
-      let points = 0
-
-      try {
-        if (gameType === 'bible_quiz') {
-          isCorrect = submitted_answer === String(content.answer_index)
-          points = isCorrect ? calcBibleQuizPoints(time_taken_ms) : 0
-        } else if (gameType === 'verse_scramble') {
-          const correctOrder = content.correct_order as number[]
-          const submittedOrder = JSON.parse(submitted_answer) as number[]
-          const correctWords = correctOrder.filter((v: number, i: number) => v === submittedOrder[i]).length
-          isCorrect = correctWords === correctOrder.length
-          points = calcVerseScramblePoints(correctWords, correctOrder.length, time_taken_ms)
-        } else if (gameType === 'emoji_story') {
-          const correct = content.correct as number[]
-          const selected = JSON.parse(submitted_answer) as number[]
-          points = calcEmojiStoryPoints(selected, correct)
-          isCorrect = points === 1000
-        }
-      } catch {
-        return json({ error: 'invalid answer format' }, 400)
+      async function previousAnswer() {
+        const [prev] = await db.select().from(answers).where(
+          and(eq(answers.sessionId, sessionId), eq(answers.questionId, question_id), eq(answers.playerId, player.id))
+        )
+        return json({ points: prev?.points ?? 0, is_correct: prev?.isCorrect ?? false })
       }
+
+      // Only the live question accepts answers. After the reveal the correct answer is public,
+      // so a late submission must not be scored.
+      const cachedQs = (sessionRow.session.questionIds as CachedQ[] | null) ?? []
+      const current = cachedQs[sessionRow.session.currentQuestionIndex]
+      if (!current || current.id !== question_id) return json({ error: 'not the current question' }, 400)
+      if (sessionRow.session.status !== 'question') return previousAnswer()
+
+      const timerMs = TIMER_MS[current.gameType]
+      const startedAt = sessionRow.session.questionStartedAt
+      const serverElapsed = startedAt ? Date.now() - startedAt.getTime() : time_taken_ms
+      const timeMs = effectiveTimeMs(time_taken_ms, serverElapsed, timerMs)
+
+      const scored = scoreAnswer(current.gameType, current.content, submitted_answer, timeMs)
+      if (!scored.ok) return json({ error: scored.error }, 400)
+      const points = isPastDeadline(serverElapsed, timerMs) ? 0 : scored.points
 
       const [insertedAnswer] = await db.insert(answers).values({
         playerId: player.id,
         questionId: question_id,
         sessionId,
         submittedAnswer: submitted_answer,
-        isCorrect,
+        isCorrect: scored.isCorrect,
         points,
-        timeTakenMs: time_taken_ms,
+        timeTakenMs: Math.round(timeMs),
       }).onConflictDoNothing().returning({ id: answers.id })
 
-      if (!insertedAnswer) {
-        return json({ points, is_correct: isCorrect })
-      }
+      // Already answered: report the stored result rather than re-scoring.
+      if (!insertedAnswer) return previousAnswer()
 
       await broadcastToRoom(sessionRow.room.code, 'player_answered', { player_id: player.id, name: player.name })
 
@@ -226,11 +236,11 @@ Deno.serve(async (req) => {
       if (revealed) {
         await broadcastToRoom(sessionRow.room.code, 'question_reveal', {
           question_id,
-          correct_answer: content.answer_index ?? content.correct_order ?? content.correct,
+          correct_answer: correctAnswerOf(current.gameType, current.content),
         })
       }
 
-      return json({ points, is_correct: isCorrect })
+      return json({ points, is_correct: scored.isCorrect })
     }
 
     return json({ error: 'not found' }, 404)

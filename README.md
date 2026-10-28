@@ -14,7 +14,9 @@ Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dim
 - Host mengontrol jalannya game (next question, end game)
 - Mode Individual atau Tim (tim diacak otomatis)
 - Leaderboard real-time
-- Hingga 30 player per room
+- Hingga 30 player per room, nama harus unik di dalam room
+- Jawaban benar tidak dikirim ke HP pemain sampai soal di-reveal; waktu dihitung server
+- Host bisa menampilkan jawaban lebih awal kalau ada pemain yang tidak menjawab
 - Tidak perlu registrasi — join pakai nama saja
 
 ## Stack
@@ -46,10 +48,12 @@ SUPABASE_DB_URL=postgresql://postgres.xxx:password@...pooler.supabase.com:6543/p
 
 ### 3. Setup database
 
-Jalankan migration di Supabase SQL Editor:
+Jalankan semua migration di Supabase SQL Editor, berurutan:
 
 ```
 supabase/migrations/20260522000000_initial.sql
+supabase/migrations/20260523000000_question_count.sql
+supabase/migrations/20260524000000_hardening.sql
 ```
 
 Lalu seed questions:
@@ -57,6 +61,8 @@ Lalu seed questions:
 ```
 supabase/seed.sql
 ```
+
+Opsional: jadwalkan `select cleanup_old_rooms();` (misalnya lewat pg_cron, harian) untuk menghapus room lama beserta datanya.
 
 ### 4. Deploy Edge Functions
 
@@ -78,8 +84,17 @@ npm run dev
 3. Host klik "Mulai Game" → soal muncul di semua HP
 4. Setelah semua soal → lihat leaderboard
 
-## Tests
+## Aturan game
+
+Skor, timer, dan validasi jawaban ada di satu tempat: `supabase/functions/_shared/game.ts`.
+Edge functions dan frontend (`lib/scoring.ts`) memakai file yang sama.
+
+## Tests dan CI
 
 ```bash
+npm run lint
+npx tsc --noEmit
 npm run test:run
 ```
+
+Semuanya juga dijalankan GitHub Actions di setiap pull request (`.github/workflows/ci.yml`).

@@ -1,7 +1,9 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Timer } from '@/components/shared/Timer'
 import { submitAnswer } from '@/lib/api'
+import { now } from '@/lib/clock'
+import { TIMER_MS } from '@/lib/scoring'
 import type { BibleQuizContent } from '@/types/game'
 
 interface Props {
@@ -24,22 +26,29 @@ const OPTIONS = [
 export function BibleQuiz({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
   const [selected, setSelected] = useState<number | null>(null)
   const [answered, setAnswered] = useState(false)
-  const startRef = useRef(Date.now())
+  const startRef = useRef(0)
+  useEffect(() => {
+    startRef.current = now()
+  }, [])
 
-  async function handleSelect(index: number) {
-    if (answered) return
-    setSelected(index)
-    setAnswered(true)
+  async function doSubmit(index: number, elapsed: number) {
     try {
       const result = await submitAnswer(sessionId, sessionToken, {
         question_id: questionId,
         submitted_answer: String(index),
-        time_taken_ms: Date.now() - startRef.current,
+        time_taken_ms: elapsed,
       })
       onAnswered(result.points, String(index))
     } catch {
       onAnswered(0, String(index))
     }
+  }
+
+  async function handleSelect(index: number) {
+    if (answered) return
+    setSelected(index)
+    setAnswered(true)
+    await doSubmit(index, now() - startRef.current)
   }
 
   function handleExpire() {
@@ -48,7 +57,7 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
     submitAnswer(sessionId, sessionToken, {
       question_id: questionId,
       submitted_answer: '-1',
-      time_taken_ms: 15000,
+      time_taken_ms: TIMER_MS.bible_quiz,
     }).then((r) => onAnswered(r.points, '-1')).catch(() => onAnswered(0, '-1'))
   }
 
@@ -59,7 +68,7 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
           <p className="tag mb-2">Soal {questionIndex + 1} / {totalQuestions}</p>
           <h2 className="font-display text-xl font-medium leading-snug">{content.question}</h2>
         </div>
-        <Timer durationMs={15000} onExpire={handleExpire} />
+        <Timer durationMs={TIMER_MS.bible_quiz} onExpire={handleExpire} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

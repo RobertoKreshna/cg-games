@@ -1,7 +1,9 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Timer } from '@/components/shared/Timer'
 import { submitAnswer } from '@/lib/api'
+import { now } from '@/lib/clock'
+import { TIMER_MS, shuffle } from '@/lib/scoring'
 import type { VerseScrambleContent } from '@/types/game'
 
 interface Props {
@@ -16,11 +18,12 @@ interface Props {
 
 export function VerseScramble({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
   const [placed, setPlaced] = useState<number[]>([])
-  const [available, setAvailable] = useState<number[]>(() =>
-    content.words.map((_, i) => i).sort(() => Math.random() - 0.5)
-  )
+  const [available, setAvailable] = useState<number[]>(() => shuffle(content.words.map((_, i) => i)))
   const [answered, setAnswered] = useState(false)
-  const startRef = useRef(Date.now())
+  const startRef = useRef(0)
+  useEffect(() => {
+    startRef.current = now()
+  }, [])
 
   function tap(wordIndex: number) {
     if (answered) return
@@ -51,13 +54,13 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
   async function handleSubmit() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(placed, Date.now() - startRef.current)
+    await doSubmit(placed, now() - startRef.current)
   }
 
   async function handleExpire() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(placed, 30000)
+    await doSubmit(placed, TIMER_MS.verse_scramble)
   }
 
   return (
@@ -67,7 +70,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
           <p className="font-display font-medium text-base mt-0.5">{content.reference}</p>
         </div>
-        <Timer durationMs={30000} onExpire={handleExpire} />
+        <Timer durationMs={TIMER_MS.verse_scramble} onExpire={handleExpire} />
       </div>
 
       <div className="min-h-24 bg-ink border-2 border-dashed border-line rounded-2xl p-3 flex flex-wrap gap-2">

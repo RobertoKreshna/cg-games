@@ -1,44 +1,36 @@
 import { createDb } from '../_shared/db.ts'
 import { rooms, players, teams, gameSessions, answers } from '../_shared/schema.ts'
 import { corsResponse, json } from '../_shared/cors.ts'
-import { eq, and } from 'npm:drizzle-orm'
-
-function generateRoomCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
-}
+import { broadcastToRoom } from '../_shared/broadcast.ts'
+import {
+  GAME_TYPES, ROOM_MODES, MAX_PLAYERS_PER_ROOM, MAX_NAME_LENGTH, MAX_QUESTION_COUNT,
+  MIN_TEAMS, MAX_TEAMS, generateRoomCode, publicContent, correctAnswerOf, shuffle,
+  type GameType,
+} from '../_shared/game.ts'
+import { eq, and, sql } from 'npm:drizzle-orm'
 
 function generateToken(): string {
   return crypto.randomUUID().replace(/-/g, '')
 }
 
-async function broadcastToRoom(roomCode: string, event: string, payload: unknown) {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${supabaseKey}`,
-      apikey: supabaseKey,
-    },
-    body: JSON.stringify({
-      messages: [{ topic: `room:${roomCode}`, event, payload }],
-    }),
-  })
-}
+// One client per isolate. Creating it per request left a connection open for every call.
+const db = createDb()
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse()
 
   const url = new URL(req.url)
   const segments = url.pathname.replace(/^.*\/rooms\/?/, '').split('/').filter(Boolean)
-  const db = createDb()
-
   try {
     // POST /rooms → create room
     if (req.method === 'POST' && segments.length === 0) {
-      const { game_type, mode = 'individual', question_count = 10 } = await req.json()
-      if (!game_type) return json({ error: 'game_type required' }, 400)
+      const body = await req.json().catch(() => null)
+      const { game_type, mode = 'individual', question_count = 10 } = body ?? {}
+      if (!GAME_TYPES.includes(game_type)) return json({ error: 'invalid game_type' }, 400)
+      if (!(ROOM_MODES as readonly string[]).includes(mode)) return json({ error: 'invalid mode' }, 400)
+      if (!Number.isInteger(question_count) || question_count < 1 || question_count > MAX_QUESTION_COUNT) {
+        return json({ error: 'invalid question_count' }, 400)
+      }
 
       let code = ''
       for (let i = 0; i < 10; i++) {
@@ -56,17 +48,25 @@ Deno.serve(async (req) => {
     // POST /rooms/:code/join
     if (req.method === 'POST' && segments.length === 2 && segments[1] === 'join') {
       const code = segments[0]
-      const { name } = await req.json()
-      if (!name?.trim()) return json({ error: 'name required' }, 400)
+      const body = await req.json().catch(() => null)
+      const name = typeof body?.name === 'string' ? body.name.trim() : ''
+      if (!name) return json({ error: 'name required' }, 400)
+      if (name.length > MAX_NAME_LENGTH) return json({ error: 'name too long' }, 400)
 
       const [room] = await db.select().from(rooms).where(eq(rooms.code, code))
       if (!room) return json({ error: 'room not found' }, 404)
       if (room.status !== 'lobby') return json({ error: 'game already started' }, 400)
 
+      const existingPlayers = await db.select({ name: players.name }).from(players).where(eq(players.roomId, room.id))
+      if (existingPlayers.length >= MAX_PLAYERS_PER_ROOM) return json({ error: 'room full' }, 409)
+      if (existingPlayers.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+        return json({ error: 'name taken' }, 409)
+      }
+
       const sessionToken = generateToken()
       const [player] = await db.insert(players).values({
         roomId: room.id,
-        name: name.trim(),
+        name,
         sessionToken,
       }).returning()
 
@@ -83,12 +83,18 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && segments.length === 2 && segments[1] === 'teams') {
       const code = segments[0]
       const hostToken = req.headers.get('x-host-token')
-      const { team_count = 3 } = await req.json()
+      const body = await req.json().catch(() => null)
+      const { team_count = 3 } = body ?? {}
+      if (!Number.isInteger(team_count) || team_count < MIN_TEAMS || team_count > MAX_TEAMS) {
+        return json({ error: 'invalid team_count' }, 400)
+      }
 
       const [room] = await db.select().from(rooms).where(
         and(eq(rooms.code, code), eq(rooms.hostToken, hostToken ?? ''))
       )
       if (!room) return json({ error: 'unauthorized' }, 403)
+      if (room.mode !== 'team') return json({ error: 'room is not in team mode' }, 400)
+      if (room.status !== 'lobby') return json({ error: 'game already started' }, 409)
 
       const NAMES = ['Tim Merah', 'Tim Biru', 'Tim Hijau', 'Tim Kuning', 'Tim Ungu']
       const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7']
@@ -103,7 +109,7 @@ Deno.serve(async (req) => {
       ).returning()
 
       const allPlayers = await db.select().from(players).where(eq(players.roomId, room.id))
-      const shuffled = [...allPlayers].sort(() => Math.random() - 0.5)
+      const shuffled = shuffle(allPlayers)
 
       await Promise.all(
         shuffled.map((player, i) =>
@@ -134,7 +140,19 @@ Deno.serve(async (req) => {
       )
       if (!room) return json({ error: 'unauthorized' }, 403)
 
-      await db.update(rooms).set({ status: 'playing' }).where(eq(rooms.id, room.id))
+      if (room.mode === 'team') {
+        const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(teams).where(eq(teams.roomId, room.id))
+        if (count === 0) return json({ error: 'teams not assigned' }, 400)
+      }
+      const [{ playerCount }] = await db.select({ playerCount: sql<number>`count(*)::int` }).from(players).where(eq(players.roomId, room.id))
+      if (playerCount === 0) return json({ error: 'no players' }, 400)
+
+      // Only the request that flips lobby -> playing creates the session; a double click gets 409.
+      const [started] = await db.update(rooms).set({ status: 'playing' })
+        .where(and(eq(rooms.id, room.id), eq(rooms.status, 'lobby')))
+        .returning({ id: rooms.id })
+      if (!started) return json({ error: 'game already started' }, 409)
+
       const [session] = await db.insert(gameSessions).values({
         roomId: room.id,
         startedAt: new Date(),
@@ -198,16 +216,18 @@ Deno.serve(async (req) => {
       const code = segments[0]
       const sessionToken = req.headers.get('x-session-token')
 
-      const [player] = await db.select().from(players).where(eq(players.sessionToken, sessionToken ?? ''))
-      if (!player) return json({ error: 'unauthorized' }, 403)
-
       const [room] = await db.select().from(rooms).where(eq(rooms.code, code))
       if (!room) return json({ error: 'room not found' }, 404)
+
+      const [player] = await db.select().from(players).where(
+        and(eq(players.sessionToken, sessionToken ?? ''), eq(players.roomId, room.id))
+      )
+      if (!player) return json({ error: 'unauthorized' }, 403)
 
       if (room.status === 'lobby') return json({ phase: 'lobby' })
 
       const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id))
-      if (!session || session.status === 'waiting') return json({ phase: 'lobby' })
+      if (!session || session.status === 'waiting') return json({ phase: 'lobby', session_id: session?.id })
 
       if (session.status === 'finished' || room.status === 'finished') {
         return json({ phase: 'finished', session_id: session.id })
@@ -223,6 +243,7 @@ Deno.serve(async (req) => {
       )
 
       const phase = session.status === 'reveal' ? 'reveal' : existing ? 'answered' : 'question'
+      const gameType = q.gameType as GameType
 
       return json({
         phase,
@@ -231,10 +252,12 @@ Deno.serve(async (req) => {
           question_index: session.currentQuestionIndex,
           question_id: q.id,
           game_type: q.gameType,
-          content: q.content,
+          content: publicContent(q.content),
           total_questions: cachedQs.length,
         },
         points: existing?.points ?? null,
+        submitted_answer: existing?.submittedAnswer ?? null,
+        correct_answer: phase === 'reveal' ? correctAnswerOf(gameType, q.content) : null,
       })
     }
 

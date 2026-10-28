@@ -26,8 +26,13 @@ export default function JoinPage() {
       })
       setCurrentPlayerRoom(roomCode)
       router.push(`/play/${roomCode}`)
-    } catch {
-      setError('Room tidak ditemukan atau game sudah mulai.')
+    } catch (e) {
+      const message = e instanceof Error ? e.message : ''
+      setError(
+        message === 'name taken' ? 'Nama itu sudah dipakai di room ini. Coba nama lain.'
+        : message === 'room full' ? 'Room sudah penuh.'
+        : 'Room tidak ditemukan atau game sudah mulai.',
+      )
     } finally {
       setLoading(false)
     }

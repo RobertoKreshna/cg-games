@@ -1,9 +1,9 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
 import { getRoomState } from '@/lib/api'
-import { getPlayerSession } from '@/lib/tokens'
+import { getPlayerSessionRaw, parsePlayerSession } from '@/lib/tokens'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
 import { VerseScramble } from '@/components/games/VerseScramble'
 import { EmojiStory } from '@/components/games/EmojiStory'
@@ -19,66 +19,122 @@ interface ActiveQuestion {
   totalQuestions: number
 }
 
+interface GameState {
+  phase: Phase
+  sessionId: string | null
+  question: ActiveQuestion | null
+  lastPoints: number | null
+  submittedAnswer: string | null
+  correctAnswer: unknown
+}
+
+const INITIAL: GameState = {
+  phase: 'lobby', sessionId: null, question: null, lastPoints: null, submittedAnswer: null, correctAnswer: null,
+}
+
+const PHASE_ORDER: Record<Phase, number> = { lobby: 0, question: 1, answered: 2, reveal: 3 }
+
+interface ServerState {
+  phase: Phase | 'finished'
+  session_id?: string
+  current_question?: {
+    question_id: string
+    game_type: GameType
+    content: ActiveQuestion['content']
+    question_index: number
+    total_questions: number
+  }
+  points?: number | null
+  submitted_answer?: string | null
+  correct_answer?: unknown
+}
+
+// Merges the server's view into local state. For the same question the local phase never moves
+// backwards (a slow response must not undo a reveal that already arrived by broadcast).
+function applyServerState(prev: GameState, data: ServerState): GameState {
+  const sessionId = data.session_id ?? prev.sessionId
+  const cq = data.current_question
+  if (!cq || data.phase === 'finished') return { ...prev, sessionId }
+
+  if (prev.question?.questionId === cq.question_id && PHASE_ORDER[prev.phase] > PHASE_ORDER[data.phase as Phase]) {
+    return { ...prev, sessionId }
+  }
+  const sameQuestion = prev.question?.questionId === cq.question_id
+  return {
+    phase: data.phase as Phase,
+    sessionId,
+    question: sameQuestion ? prev.question : {
+      questionId: cq.question_id,
+      gameType: cq.game_type,
+      content: cq.content,
+      questionIndex: cq.question_index,
+      totalQuestions: cq.total_questions,
+    },
+    lastPoints: data.points ?? (sameQuestion ? prev.lastPoints : null),
+    submittedAnswer: data.submitted_answer ?? (sameQuestion ? prev.submittedAnswer : null),
+    correctAnswer: data.correct_answer ?? (sameQuestion ? prev.correctAnswer : null),
+  }
+}
+
+const subscribeNoop = () => () => {}
+
 export default function PlayPage() {
   const { roomCode } = useParams<{ roomCode: string }>()
   const router = useRouter()
 
-  const [session, setSession] = useState<ReturnType<typeof getPlayerSession>>(null)
-  const [sessionReady, setSessionReady] = useState(false)
-  const [phase, setPhase] = useState<Phase>('lobby')
-  const [question, setQuestion] = useState<ActiveQuestion | null>(null)
-  const [lastPoints, setLastPoints] = useState<number | null>(null)
-  const [submittedAnswer, setSubmittedAnswer] = useState<string | null>(null)
-  const [correctAnswer, setCorrectAnswer] = useState<unknown>(null)
-  const sessionIdRef = useRef<string | null>(null)
+  // localStorage is only readable on the client; the server snapshot keeps hydration consistent.
+  const sessionReady = useSyncExternalStore(subscribeNoop, () => true, () => false)
+  const rawSession = useSyncExternalStore(subscribeNoop, () => getPlayerSessionRaw(roomCode), () => null)
+  const session = useMemo(() => parsePlayerSession(rawSession), [rawSession])
+  const sessionToken = session?.sessionToken
 
-  useEffect(() => {
-    const s = getPlayerSession(roomCode)
-    setSession(s)
-    setSessionReady(true)
-    if (!s) return
-    getRoomState(roomCode, s.sessionToken).then((data) => {
-      if (data.session_id) sessionIdRef.current = data.session_id
+  const [game, setGame] = useState<GameState>(INITIAL)
+  const { phase, question, lastPoints, submittedAnswer, correctAnswer, sessionId } = game
+
+  const sync = useCallback(() => {
+    if (!sessionToken) return
+    getRoomState(roomCode, sessionToken).then((data: ServerState) => {
       if (data.phase === 'finished') {
         router.push(`/results/${data.session_id}`)
-      } else if (data.current_question) {
-        setQuestion({
-          questionId: data.current_question.question_id,
-          gameType: data.current_question.game_type,
-          content: data.current_question.content,
-          questionIndex: data.current_question.question_index,
-          totalQuestions: data.current_question.total_questions,
-        })
-        if (data.points !== null) setLastPoints(data.points)
-        setPhase(data.phase)
+      } else {
+        setGame((prev) => applyServerState(prev, data))
       }
     }).catch(() => {})
-  }, [roomCode, router])
+  }, [roomCode, sessionToken, router])
+
+  useEffect(() => { sync() }, [sync])
 
   const handleEvent = useCallback((e: GameEvent) => {
     if (e.event === 'game_started') {
-      sessionIdRef.current = e.payload.session_id
+      setGame((prev) => ({ ...prev, sessionId: e.payload.session_id }))
     } else if (e.event === 'question_show') {
-      setLastPoints(null)
-      setSubmittedAnswer(null)
-      setCorrectAnswer(null)
-      setQuestion({
-        questionId: e.payload.question_id,
-        gameType: e.payload.game_type,
-        content: e.payload.content,
-        questionIndex: e.payload.question_index,
-        totalQuestions: e.payload.total_questions,
-      })
-      setPhase('question')
+      setGame((prev) => ({
+        phase: 'question',
+        sessionId: e.payload.session_id ?? prev.sessionId,
+        question: {
+          questionId: e.payload.question_id,
+          gameType: e.payload.game_type,
+          content: e.payload.content,
+          questionIndex: e.payload.question_index,
+          totalQuestions: e.payload.total_questions,
+        },
+        lastPoints: null,
+        submittedAnswer: null,
+        correctAnswer: null,
+      }))
     } else if (e.event === 'question_reveal') {
-      setCorrectAnswer(e.payload.correct_answer)
-      setPhase('reveal')
+      setGame((prev) => ({ ...prev, correctAnswer: e.payload.correct_answer, phase: 'reveal' }))
     } else if (e.event === 'game_finished') {
-      router.push(`/results/${sessionIdRef.current ?? e.payload.session_id}`)
+      router.push(`/results/${e.payload.session_id}`)
     }
   }, [router])
 
-  useGameChannel(roomCode, handleEvent)
+  useGameChannel(roomCode, handleEvent, sync)
+
+  // Late replies after the reveal must not pull the player back to the "answered" screen.
+  const handleAnswered = useCallback((pts: number, sub: string) => {
+    setGame((prev) => ({ ...prev, lastPoints: pts, submittedAnswer: sub, phase: prev.phase === 'reveal' ? prev.phase : 'answered' }))
+  }, [])
 
   if (!sessionReady) return null
 
@@ -113,18 +169,18 @@ export default function PlayPage() {
         </div>
       )}
 
-      {phase === 'question' && question && sessionIdRef.current && (
+      {phase === 'question' && question && sessionId && (
         <div className="flex-1 flex flex-col">
           {question.gameType === 'bible_quiz' && (
             <BibleQuiz
               key={question.questionId}
               questionId={question.questionId}
               content={question.content as BibleQuizContent}
-              sessionId={sessionIdRef.current}
+              sessionId={sessionId}
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
-              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase((p) => p === 'reveal' ? p : 'answered') }}
+              onAnswered={handleAnswered}
             />
           )}
           {question.gameType === 'verse_scramble' && (
@@ -132,11 +188,11 @@ export default function PlayPage() {
               key={question.questionId}
               questionId={question.questionId}
               content={question.content as VerseScrambleContent}
-              sessionId={sessionIdRef.current}
+              sessionId={sessionId}
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
-              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase((p) => p === 'reveal' ? p : 'answered') }}
+              onAnswered={handleAnswered}
             />
           )}
           {question.gameType === 'emoji_story' && (
@@ -144,18 +200,18 @@ export default function PlayPage() {
               key={question.questionId}
               questionId={question.questionId}
               content={question.content as EmojiStoryContent}
-              sessionId={sessionIdRef.current}
+              sessionId={sessionId}
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
-              onAnswered={(pts, sub) => { setLastPoints(pts); setSubmittedAnswer(sub); setPhase((p) => p === 'reveal' ? p : 'answered') }}
+              onAnswered={handleAnswered}
             />
           )}
         </div>
       )}
 
       {(phase === 'answered' || phase === 'reveal') && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
+        <div role="status" aria-live="polite" className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
           {lastPoints !== null ? (
             <>
               <div className="text-6xl animate-pop-in">

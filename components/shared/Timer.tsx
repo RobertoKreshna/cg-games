@@ -10,10 +10,11 @@ interface TimerProps {
 export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
   const [remainingMs, setRemainingMs] = useState(durationMs)
   const onExpireRef = useRef(onExpire)
-  onExpireRef.current = onExpire
+  useEffect(() => {
+    onExpireRef.current = onExpire
+  })
 
   useEffect(() => {
-    setRemainingMs(durationMs)
     const start = Date.now()
     const interval = setInterval(() => {
       const remaining = Math.max(0, durationMs - (Date.now() - start))
@@ -33,7 +34,7 @@ export function Timer({ durationMs, onExpire, className = '' }: TimerProps) {
 
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <div className={`relative w-14 h-14 ${pct <= 0.2 ? 'animate-pulse' : ''}`}>
+      <div role="timer" aria-label={`${seconds} detik`} className={`relative w-14 h-14 ${pct <= 0.2 ? 'animate-pulse' : ''}`}>
         <svg className="w-14 h-14 -rotate-90" viewBox="0 0 60 60">
           <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="4" />
           <circle
