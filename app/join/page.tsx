@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { joinRoom } from '@/lib/api'
+import { joinRoom, rejoinRoom } from '@/lib/api'
 import { savePlayerSession, setCurrentPlayerRoom } from '@/lib/tokens'
 
 export default function JoinPage() {
@@ -11,13 +11,17 @@ export default function JoinPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  async function handleJoin() {
+  // Set when the name is already taken: the owner may be this same person coming back.
+  const [canRejoin, setCanRejoin] = useState(false)
+
+  async function enter(action: typeof joinRoom) {
     if (!code.trim() || !name.trim()) return
     setLoading(true)
     setError('')
+    setCanRejoin(false)
     try {
-      const data = await joinRoom(code.toUpperCase().trim(), name.trim())
       const roomCode = code.toUpperCase().trim()
+      const data = await action(roomCode, name.trim())
       savePlayerSession(roomCode, {
         sessionToken: data.session_token,
         playerId: data.player_id,
@@ -28,15 +32,20 @@ export default function JoinPage() {
       router.push(`/play/${roomCode}`)
     } catch (e) {
       const message = e instanceof Error ? e.message : ''
+      if (message === 'name taken') setCanRejoin(true)
       setError(
-        message === 'name taken' ? 'Nama itu sudah dipakai di room ini. Coba nama lain.'
+        message === 'name taken' ? 'Nama itu sudah dipakai di room ini.'
         : message === 'room full' ? 'Room sudah penuh.'
+        : message === 'player not found' ? 'Tidak ada pemain dengan nama itu di room ini.'
+        : message === 'game already finished' ? 'Game ini sudah selesai.'
         : 'Room tidak ditemukan atau game sudah mulai.',
       )
     } finally {
       setLoading(false)
     }
   }
+
+  const handleJoin = () => enter(joinRoom)
 
   return (
     <main className="min-h-dvh flex flex-col items-center justify-center p-6">
@@ -74,6 +83,11 @@ export default function JoinPage() {
 
           {error && (
             <p className="text-rose-300 text-sm font-semibold text-center">{error}</p>
+          )}
+          {canRejoin && (
+            <button onClick={() => enter(rejoinRoom)} disabled={loading} className="btn-secondary py-3 text-sm w-full">
+              Ini saya, masuk lagi sebagai {name.trim()}
+            </button>
           )}
 
           <button

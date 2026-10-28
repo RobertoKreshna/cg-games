@@ -13,16 +13,20 @@ interface Props {
   sessionToken: string
   questionIndex: number
   totalQuestions: number
+  /** Time already spent on this question, e.g. when the page was refreshed mid-question. */
+  elapsedMs?: number
   onAnswered: (points: number, submittedAnswer: string) => void
 }
 
-export function VerseScramble({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
+export function VerseScramble({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, elapsedMs = 0, onAnswered }: Props) {
   const [placed, setPlaced] = useState<number[]>([])
   const [available, setAvailable] = useState<number[]>(() => shuffle(content.words.map((_, i) => i)))
   const [answered, setAnswered] = useState(false)
+  const [sendError, setSendError] = useState(false)
   const startRef = useRef(0)
   useEffect(() => {
-    startRef.current = now()
+    startRef.current = now() - elapsedMs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function tap(wordIndex: number) {
@@ -38,7 +42,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
     setAvailable((p) => [...p, wordIndex])
   }
 
-  async function doSubmit(indices: number[], elapsed: number) {
+  async function doSubmit(indices: number[], elapsed: number): Promise<boolean> {
     try {
       const result = await submitAnswer(sessionId, sessionToken, {
         question_id: questionId,
@@ -46,21 +50,28 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
         time_taken_ms: elapsed,
       })
       onAnswered(result.points, JSON.stringify(indices))
+      return true
     } catch {
-      onAnswered(0, JSON.stringify(indices))
+      return false
     }
   }
 
   async function handleSubmit() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(placed, now() - startRef.current)
+    setSendError(false)
+    if (!(await doSubmit(placed, now() - startRef.current))) {
+      // Not recorded by the server: let the player submit again while time remains.
+      setAnswered(false)
+      setSendError(true)
+    }
   }
 
   async function handleExpire() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(placed, TIMER_MS.verse_scramble)
+    // Time is up, so there is no second chance: show 0 if the answer could not be sent.
+    if (!(await doSubmit(placed, TIMER_MS.verse_scramble))) onAnswered(0, JSON.stringify(placed))
   }
 
   return (
@@ -70,7 +81,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
           <p className="font-display font-medium text-base mt-0.5">{content.reference}</p>
         </div>
-        <Timer durationMs={TIMER_MS.verse_scramble} onExpire={handleExpire} />
+        <Timer durationMs={Math.max(500, TIMER_MS.verse_scramble - elapsedMs)} onExpire={handleExpire} />
       </div>
 
       <div className="min-h-24 bg-ink border-2 border-dashed border-line rounded-2xl p-3 flex flex-wrap gap-2">
@@ -101,6 +112,12 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
           </button>
         ))}
       </div>
+
+      {sendError && !answered && (
+        <p role="alert" className="text-rose-300 text-xs font-semibold text-center">
+          Jawaban belum terkirim. Periksa koneksi, lalu coba lagi.
+        </p>
+      )}
 
       {!answered ? (
         <button onClick={handleSubmit} disabled={placed.length === 0} className="btn-primary py-3 text-base w-full">

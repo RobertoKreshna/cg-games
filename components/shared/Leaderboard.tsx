@@ -3,6 +3,8 @@ import type { LeaderboardEntry, RoomMode } from '@/types/game'
 interface LeaderboardProps {
   entries: LeaderboardEntry[]
   mode: RoomMode
+  /** Player id (individual) or team id (team) to highlight. */
+  meId?: string | null
 }
 
 const PODIUM = [
@@ -11,17 +13,18 @@ const PODIUM = [
   { medal: '🥉', accent: 'border-[#CD7F32]/50 bg-[#CD7F32]/10' },
 ]
 
-export function Leaderboard({ entries, mode }: LeaderboardProps) {
+export function Leaderboard({ entries, mode, meId }: LeaderboardProps) {
   return (
     <div className="flex flex-col gap-2 w-full max-w-md mx-auto">
       {entries.map((entry, i) => {
         const podium = i < 3 ? PODIUM[i] : null
+        const isMe = !!meId && (entry.playerId ?? entry.teamId) === meId
         return (
           <div
             key={entry.playerId ?? entry.teamId}
             className={`animate-pop-in flex items-center gap-3 rounded-2xl p-4 border ${
               podium ? podium.accent : 'bg-surface border-line'
-            } ${i === 0 ? 'py-5' : ''}`}
+            } ${i === 0 ? 'py-5' : ''} ${isMe ? 'ring-2 ring-gold' : ''}`}
             style={{ animationDelay: `${Math.min(i, 10) * 70}ms` }}
           >
             <span className="w-8 text-center shrink-0">
@@ -35,6 +38,7 @@ export function Leaderboard({ entries, mode }: LeaderboardProps) {
             )}
             <span className={`flex-1 font-bold ${i === 0 ? 'font-display text-lg font-semibold' : 'text-sm'}`}>
               {entry.playerName ?? entry.teamName}
+              {isMe && <span className="text-gold text-[10px] font-bold uppercase tracking-wider ml-2">Kamu</span>}
             </span>
             <span className={`font-bold shrink-0 tabular-nums ${i === 0 ? 'text-gold text-lg' : 'text-sm'}`}>
               {entry.totalPoints ?? 0}

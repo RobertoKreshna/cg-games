@@ -16,7 +16,10 @@ Platform game interaktif berbasis web untuk connect group / persekutuan doa. Dim
 - Leaderboard real-time
 - Hingga 30 player per room, nama harus unik di dalam room
 - Jawaban benar tidak dikirim ke HP pemain sampai soal di-reveal; waktu dihitung server
-- Host bisa menampilkan jawaban lebih awal kalau ada pemain yang tidak menjawab
+- Klasemen sementara tampil di setiap reveal; skor tim = rata-rata poin per anggota
+- Jawaban otomatis ditampilkan saat waktu habis (host juga bisa menampilkannya lebih awal)
+- Pemain yang terputus bisa masuk lagi dengan nama yang sama; timer dan state dipulihkan setelah refresh
+- Error browser dan edge function dikirim ke Discord (opsional)
 - Tidak perlu registrasi — join pakai nama saja
 
 ## Stack
@@ -44,7 +47,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
 SUPABASE_DB_URL=postgresql://postgres.xxx:password@...pooler.supabase.com:6543/postgres
+
+# opsional
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
+
+Lihat `.env.example` untuk daftar lengkap.
 
 ### 3. Setup database
 
@@ -71,7 +79,16 @@ supabase functions deploy rooms --no-verify-jwt
 supabase functions deploy sessions --no-verify-jwt
 ```
 
-### 5. Run dev server
+### 5. Notifikasi error ke Discord (opsional)
+
+Buat webhook di channel Discord, lalu pasang di dua tempat (keduanya perlu):
+
+- **Vercel** (untuk error di browser): tambahkan environment variable `DISCORD_WEBHOOK_URL`, lalu redeploy.
+- **Supabase** (untuk error di edge function): `supabase secrets set DISCORD_WEBHOOK_URL=... --project-ref <ref>`
+
+Jangan commit URL webhook. Kalau URL-nya bocor, hapus webhook di Discord dan buat yang baru.
+
+### 6. Run dev server
 
 ```bash
 npm run dev

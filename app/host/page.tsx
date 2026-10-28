@@ -2,10 +2,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createRoom, assignTeams, startGame, nextQuestion, revealQuestion, getHostState } from '@/lib/api'
-import { TIMER_MS } from '@/lib/scoring'
+import { TIMER_MS, DEADLINE_GRACE_MS } from '@/lib/scoring'
+import { now } from '@/lib/clock'
+import { StandingsCard } from '@/components/shared/Standings'
 import { saveHostSession, updateHostSession, setCurrentHostRoom, getCurrentHostRoom, getHostSession, clearHostSession } from '@/lib/tokens'
 import { useGameChannel, type GameEvent } from '@/lib/realtime'
-import type { GameType, RoomMode } from '@/types/game'
+import type { GameType, RoomMode, Standings } from '@/types/game'
 
 type HostPhase = 'configure' | 'lobby' | 'playing' | 'finished'
 
@@ -19,6 +21,9 @@ interface HostState {
   questionStatus?: 'idle' | 'showing' | 'reveal'
   currentQ?: number
   totalQ?: number
+  answeredIds?: string[]
+  questionElapsedMs?: number | null
+  standings?: Standings | null
 }
 
 interface PlayerInfo { id: string; name: string; teamName?: string; teamColor?: string }
@@ -45,6 +50,10 @@ export default function HostPage() {
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set())
   const [currentQ, setCurrentQ] = useState(0)
   const [totalQ, setTotalQ] = useState(0)
+  const [standings, setStandings] = useState<Standings | null>(null)
+  // When the host reveals on its own if players have not all answered (timer + grace).
+  const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -57,6 +66,13 @@ export default function HostPage() {
       setQuestionStatus(data.questionStatus ?? 'idle')
       setCurrentQ(data.currentQ ?? 0)
       setTotalQ(data.totalQ ?? 0)
+      setAnsweredIds(new Set(data.answeredIds ?? []))
+      setStandings(data.standings ?? null)
+      setDeadlineAt(
+        data.questionStatus === 'showing' && data.questionElapsedMs != null
+          ? now() + TIMER_MS[data.gameType] + DEADLINE_GRACE_MS - data.questionElapsedMs
+          : null,
+      )
       setPhase('playing')
     } else if (data.phase === 'finished') {
       setSessionId(data.session_id ?? savedSessionId ?? '')
@@ -108,16 +124,38 @@ export default function HostPage() {
       setTotalQ(e.payload.total_questions)
       setQuestionStatus('showing')
       setAnsweredIds(new Set())
+      setStandings(null)
+      setSecondsLeft(null)
+      setDeadlineAt(now() + TIMER_MS[gameType] + DEADLINE_GRACE_MS)
     } else if (e.event === 'player_answered') {
       setAnsweredIds((prev) => new Set(prev).add(e.payload.player_id))
     } else if (e.event === 'question_reveal') {
       setQuestionStatus('reveal')
+      setStandings(e.payload.standings ?? null)
+      setDeadlineAt(null)
     } else if (e.event === 'game_finished') {
       setPhase('finished')
     }
-  }, [])
+  }, [gameType])
 
   useGameChannel(roomCode || null, handleEvent, resync)
+
+  // Players' own timers normally end the round; this covers anyone who left or lost connection.
+  useEffect(() => {
+    if (questionStatus !== 'showing' || deadlineAt === null || !sessionId) return
+    const id = setTimeout(() => {
+      revealQuestion(sessionId, hostToken).catch(() => {})
+    }, Math.max(0, deadlineAt - now()))
+    return () => clearTimeout(id)
+  }, [questionStatus, deadlineAt, sessionId, hostToken])
+
+  useEffect(() => {
+    if (questionStatus !== 'showing' || deadlineAt === null) return
+    const id = setInterval(() => {
+      setSecondsLeft(Math.max(0, Math.ceil((deadlineAt - DEADLINE_GRACE_MS - now()) / 1000)))
+    }, 500)
+    return () => clearInterval(id)
+  }, [questionStatus, deadlineAt])
 
   async function handleCreate() {
     setLoading(true)
@@ -372,7 +410,9 @@ export default function HostPage() {
               <div className="flex items-center justify-between">
                 <p className="font-bold text-sm">
                   {questionStatus === 'showing' ? (
-                    <span className="animate-pulse">⏱ Menunggu jawaban</span>
+                    <span className="animate-pulse">
+                      ⏱ Menunggu jawaban{secondsLeft !== null && <span className="tabular-nums"> · {secondsLeft} dtk</span>}
+                    </span>
                   ) : '✅ Semua sudah menjawab'}
                 </p>
                 <span className="text-mist text-xs font-bold tabular-nums">
@@ -398,6 +438,12 @@ export default function HostPage() {
             </div>
           )}
         </div>
+
+        {questionStatus === 'reveal' && standings && (
+          <div className="mb-4 flex justify-center">
+            <StandingsCard standings={standings} />
+          </div>
+        )}
 
         {error && <p className="text-rose-300 text-xs font-semibold text-center">{error}</p>}
         <button

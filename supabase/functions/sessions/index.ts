@@ -1,14 +1,30 @@
 import { createDb } from '../_shared/db.ts'
-import { gameSessions, questions, answers, players, rooms, teams } from '../_shared/schema.ts'
+import { gameSessions, questions, answers, players, rooms } from '../_shared/schema.ts'
 import { corsResponse, json } from '../_shared/cors.ts'
 import { broadcastToRoom } from '../_shared/broadcast.ts'
+import { computeStandings } from '../_shared/standings.ts'
+import { reportError } from '../_shared/report.ts'
 import {
   TIMER_MS, effectiveTimeMs, isPastDeadline, scoreAnswer, publicContent, correctAnswerOf, shuffle,
   type GameType,
 } from '../_shared/game.ts'
 import { eq, and, sql } from 'npm:drizzle-orm'
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 type CachedQ = { id: string; gameType: GameType; content: unknown }
+
+// The ranking sent with every reveal. If it cannot be computed the reveal still goes out.
+async function revealPayload(db: ReturnType<typeof createDb>, room: { id: string; mode: 'individual' | 'team' }, sessionId: string, q: CachedQ) {
+  let standings = null
+  try {
+    standings = await computeStandings(db, room.id, room.mode, sessionId)
+  } catch (e) {
+    console.error('standings failed', e)
+    await reportError('standings', e)
+  }
+  return { question_id: q.id, correct_answer: correctAnswerOf(q.gameType, q.content), standings }
+}
 
 // One client per isolate. Creating it per request left a connection open for every call.
 const db = createDb()
@@ -19,6 +35,9 @@ Deno.serve(async (req) => {
   const url = new URL(req.url)
   const segments = url.pathname.replace(/^.*\/sessions\/?/, '').split('/').filter(Boolean)
   try {
+    // A malformed id would otherwise surface as a database error (and a false alarm in Discord).
+    if (!UUID.test(segments[0] ?? '')) return json({ error: 'not found' }, 404)
+
     // GET /sessions/:id/leaderboard
     if (req.method === 'GET' && segments.length === 2 && segments[1] === 'leaderboard') {
       const sessionId = segments[0]
@@ -30,35 +49,21 @@ Deno.serve(async (req) => {
         .where(eq(gameSessions.id, sessionId))
       if (!row) return json({ error: 'session not found' }, 404)
 
-      if (row.room.mode === 'individual') {
-        const leaderboard = await db
-          .select({
-            playerId: answers.playerId,
-            playerName: players.name,
-            totalPoints: sql<number>`sum(${answers.points})::int`,
-          })
-          .from(answers)
-          .innerJoin(players, eq(answers.playerId, players.id))
-          .where(eq(answers.sessionId, sessionId))
-          .groupBy(answers.playerId, players.name)
-          .orderBy(sql`sum(${answers.points}) desc, sum(${answers.timeTakenMs}) asc`)
-        return json({ mode: 'individual', leaderboard })
-      } else {
-        const leaderboard = await db
-          .select({
-            teamId: teams.id,
-            teamName: teams.name,
-            teamColor: teams.color,
-            totalPoints: sql<number>`sum(${answers.points})::int`,
-          })
-          .from(answers)
-          .innerJoin(players, eq(answers.playerId, players.id))
-          .innerJoin(teams, eq(players.teamId, teams.id))
-          .where(eq(answers.sessionId, sessionId))
-          .groupBy(teams.id, teams.name, teams.color)
-          .orderBy(sql`sum(${answers.points}) desc, sum(${answers.timeTakenMs}) asc`)
-        return json({ mode: 'team', leaderboard })
-      }
+      const standings = await computeStandings(db, row.room.id, row.room.mode, sessionId)
+
+      // A player's own token tells the results page which row is theirs.
+      const sessionToken = req.headers.get('x-session-token')
+      const [me] = sessionToken
+        ? await db.select({ id: players.id, teamId: players.teamId }).from(players)
+            .where(and(eq(players.sessionToken, sessionToken), eq(players.roomId, row.room.id)))
+        : []
+
+      const leaderboard = standings.entries.map((e) =>
+        standings.mode === 'individual'
+          ? { playerId: e.id, playerName: e.name, totalPoints: e.points }
+          : { teamId: e.id, teamName: e.name, teamColor: e.color, totalPoints: e.points }
+      )
+      return json({ mode: standings.mode, leaderboard, me: me ? { playerId: me.id, teamId: me.teamId } : null })
     }
 
     // POST /sessions/:id/next → advance question (host only)
@@ -151,10 +156,7 @@ Deno.serve(async (req) => {
         .returning({ id: gameSessions.id })
       if (!revealed) return json({ error: 'question is not active' }, 409)
 
-      await broadcastToRoom(row.room.code, 'question_reveal', {
-        question_id: q.id,
-        correct_answer: correctAnswerOf(q.gameType, q.content),
-      })
+      await broadcastToRoom(row.room.code, 'question_reveal', await revealPayload(db, row.room, sessionId, q))
       return json({ status: 'reveal' })
     }
 
@@ -234,10 +236,7 @@ Deno.serve(async (req) => {
         .returning({ id: gameSessions.id })
 
       if (revealed) {
-        await broadcastToRoom(sessionRow.room.code, 'question_reveal', {
-          question_id,
-          correct_answer: correctAnswerOf(current.gameType, current.content),
-        })
+        await broadcastToRoom(sessionRow.room.code, 'question_reveal', await revealPayload(db, sessionRow.room, sessionId, current))
       }
 
       return json({ points, is_correct: scored.isCorrect })
@@ -246,6 +245,7 @@ Deno.serve(async (req) => {
     return json({ error: 'not found' }, 404)
   } catch (e) {
     console.error(e)
+    await reportError('edge/sessions', e, req)
     return json({ error: 'internal server error' }, 500)
   }
 })

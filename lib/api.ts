@@ -1,12 +1,34 @@
+import { reportClientError } from './report'
+
 const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`
 
-async function call(path: string, options: RequestInit = {}) {
-  const res = await fetch(`${BASE}${path}`, options)
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`)
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+interface CallOptions extends RequestInit {
+  /** Extra attempts after a network error or 5xx. Only for requests that are safe to repeat. */
+  retries?: number
+}
+
+async function call(path: string, { retries = 0, ...options }: CallOptions = {}) {
+  for (let attempt = 0; ; attempt++) {
+    let res: Response
+    try {
+      res = await fetch(`${BASE}${path}`, options)
+    } catch (e) {
+      if (attempt < retries) { await sleep(400 * (attempt + 1)); continue }
+      reportClientError(`api ${path}`, e)
+      throw e
+    }
+    if (res.status >= 500 && attempt < retries) { await sleep(400 * (attempt + 1)); continue }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      const message = (body as { error?: string }).error ?? `HTTP ${res.status}`
+      // 4xx are expected (bad code, name taken, ...); only server faults are worth an alert.
+      if (res.status >= 500) reportClientError(`api ${path}`, new Error(`HTTP ${res.status}: ${message}`))
+      throw new Error(message)
+    }
+    return res.json()
   }
-  return res.json()
 }
 
 export function createRoom(gameType: string, mode: string, questionCount: number) {
@@ -19,6 +41,14 @@ export function createRoom(gameType: string, mode: string, questionCount: number
 
 export function joinRoom(code: string, name: string) {
   return call(`/rooms/${code}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function rejoinRoom(code: string, name: string) {
+  return call(`/rooms/${code}/rejoin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
@@ -62,7 +92,9 @@ export function submitAnswer(
   sessionToken: string,
   data: { question_id: string; submitted_answer: string; time_taken_ms: number },
 ) {
+  // Safe to retry: the server stores the first answer and replays its result for repeats.
   return call(`/sessions/${sessionId}/answer`, {
+    retries: 2,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-session-token': sessionToken },
     body: JSON.stringify(data),
@@ -81,6 +113,8 @@ export function getRoomState(code: string, sessionToken: string) {
   })
 }
 
-export function getLeaderboard(sessionId: string) {
-  return call(`/sessions/${sessionId}/leaderboard`)
+export function getLeaderboard(sessionId: string, sessionToken?: string) {
+  return call(`/sessions/${sessionId}/leaderboard`, {
+    headers: sessionToken ? { 'x-session-token': sessionToken } : {},
+  })
 }

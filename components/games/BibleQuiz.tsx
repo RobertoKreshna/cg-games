@@ -13,6 +13,8 @@ interface Props {
   sessionToken: string
   questionIndex: number
   totalQuestions: number
+  /** Time already spent on this question, e.g. when the page was refreshed mid-question. */
+  elapsedMs?: number
   onAnswered: (points: number, submittedAnswer: string) => void
 }
 
@@ -23,15 +25,17 @@ const OPTIONS = [
   { label: 'D', shape: '■', bg: '#16A34A', shadow: '#14532D', text: 'text-white' },
 ]
 
-export function BibleQuiz({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
+export function BibleQuiz({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, elapsedMs = 0, onAnswered }: Props) {
   const [selected, setSelected] = useState<number | null>(null)
   const [answered, setAnswered] = useState(false)
+  const [sendError, setSendError] = useState(false)
   const startRef = useRef(0)
   useEffect(() => {
-    startRef.current = now()
+    startRef.current = now() - elapsedMs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function doSubmit(index: number, elapsed: number) {
+  async function doSubmit(index: number, elapsed: number): Promise<boolean> {
     try {
       const result = await submitAnswer(sessionId, sessionToken, {
         question_id: questionId,
@@ -39,8 +43,9 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
         time_taken_ms: elapsed,
       })
       onAnswered(result.points, String(index))
+      return true
     } catch {
-      onAnswered(0, String(index))
+      return false
     }
   }
 
@@ -48,7 +53,13 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
     if (answered) return
     setSelected(index)
     setAnswered(true)
-    await doSubmit(index, now() - startRef.current)
+    setSendError(false)
+    if (!(await doSubmit(index, now() - startRef.current))) {
+      // Not recorded by the server: let the player tap again while time remains.
+      setAnswered(false)
+      setSelected(null)
+      setSendError(true)
+    }
   }
 
   function handleExpire() {
@@ -68,7 +79,7 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
           <p className="tag mb-2">Soal {questionIndex + 1} / {totalQuestions}</p>
           <h2 className="font-display text-xl font-medium leading-snug">{content.question}</h2>
         </div>
-        <Timer durationMs={TIMER_MS.bible_quiz} onExpire={handleExpire} />
+        <Timer durationMs={Math.max(500, TIMER_MS.bible_quiz - elapsedMs)} onExpire={handleExpire} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -91,6 +102,13 @@ export function BibleQuiz({ questionId, content, sessionId, sessionToken, questi
           )
         })}
       </div>
+
+
+      {sendError && !answered && (
+        <p role="alert" className="text-rose-300 text-xs font-semibold text-center">
+          Jawaban belum terkirim. Periksa koneksi, lalu coba lagi.
+        </p>
+      )}
 
       {answered && (
         <div className="flex flex-col items-center gap-1.5">

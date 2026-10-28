@@ -31,3 +31,22 @@ export interface LeaderboardEntry {
   teamColor?: string
   totalPoints: number
 }
+
+export interface StandingEntry {
+  /** Player id (individual) or team id (team). */
+  id: string
+  name: string
+  color?: string
+  points: number
+}
+
+export interface Standings {
+  mode: RoomMode
+  entries: StandingEntry[]
+}
+
+export interface TeamInfo {
+  id: string
+  name: string
+  color: string
+}

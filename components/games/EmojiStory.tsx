@@ -13,15 +13,19 @@ interface Props {
   sessionToken: string
   questionIndex: number
   totalQuestions: number
+  /** Time already spent on this question, e.g. when the page was refreshed mid-question. */
+  elapsedMs?: number
   onAnswered: (points: number, submittedAnswer: string) => void
 }
 
-export function EmojiStory({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, onAnswered }: Props) {
+export function EmojiStory({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, elapsedMs = 0, onAnswered }: Props) {
   const [selected, setSelected] = useState<number[]>([])
   const [answered, setAnswered] = useState(false)
+  const [sendError, setSendError] = useState(false)
   const startRef = useRef(0)
   useEffect(() => {
-    startRef.current = now()
+    startRef.current = now() - elapsedMs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [shuffledIndices] = useState<number[]>(() => shuffle(content.words.map((_, i) => i)))
 
@@ -34,7 +38,7 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
     })
   }
 
-  async function doSubmit(indices: number[], elapsed: number) {
+  async function doSubmit(indices: number[], elapsed: number): Promise<boolean> {
     try {
       const result = await submitAnswer(sessionId, sessionToken, {
         question_id: questionId,
@@ -42,21 +46,28 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
         time_taken_ms: elapsed,
       })
       onAnswered(result.points, JSON.stringify(indices))
+      return true
     } catch {
-      onAnswered(0, JSON.stringify(indices))
+      return false
     }
   }
 
   async function handleSubmit() {
     if (answered || selected.length !== 5) return
     setAnswered(true)
-    await doSubmit(selected, now() - startRef.current)
+    setSendError(false)
+    if (!(await doSubmit(selected, now() - startRef.current))) {
+      // Not recorded by the server: let the player submit again while time remains.
+      setAnswered(false)
+      setSendError(true)
+    }
   }
 
   async function handleExpire() {
     if (answered) return
     setAnswered(true)
-    await doSubmit(selected, TIMER_MS.emoji_story)
+    // Time is up, so there is no second chance: show 0 if the answer could not be sent.
+    if (!(await doSubmit(selected, TIMER_MS.emoji_story))) onAnswered(0, JSON.stringify(selected))
   }
 
   const remaining = 5 - selected.length
@@ -70,7 +81,7 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
             {answered ? 'Menunggu soal berikutnya...' : remaining > 0 ? `Pilih ${remaining} lagi` : 'Siap submit! 🔥'}
           </p>
         </div>
-        <Timer durationMs={TIMER_MS.emoji_story} onExpire={handleExpire} />
+        <Timer durationMs={Math.max(500, TIMER_MS.emoji_story - elapsedMs)} onExpire={handleExpire} />
       </div>
 
       <div className="card w-full py-5 flex flex-col items-center gap-1.5">
@@ -98,6 +109,12 @@ export function EmojiStory({ questionId, content, sessionId, sessionToken, quest
           )
         })}
       </div>
+
+      {sendError && !answered && (
+        <p role="alert" className="text-rose-300 text-xs font-semibold text-center">
+          Jawaban belum terkirim. Periksa koneksi, lalu coba lagi.
+        </p>
+      )}
 
       {!answered && (
         <button

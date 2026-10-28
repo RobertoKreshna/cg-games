@@ -7,74 +7,9 @@ import { getPlayerSessionRaw, parsePlayerSession } from '@/lib/tokens'
 import { BibleQuiz } from '@/components/games/BibleQuiz'
 import { VerseScramble } from '@/components/games/VerseScramble'
 import { EmojiStory } from '@/components/games/EmojiStory'
-import type { BibleQuizContent, EmojiStoryContent, GameType, VerseScrambleContent } from '@/types/game'
-
-type Phase = 'lobby' | 'question' | 'answered' | 'reveal'
-
-interface ActiveQuestion {
-  questionId: string
-  gameType: GameType
-  content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent
-  questionIndex: number
-  totalQuestions: number
-}
-
-interface GameState {
-  phase: Phase
-  sessionId: string | null
-  question: ActiveQuestion | null
-  lastPoints: number | null
-  submittedAnswer: string | null
-  correctAnswer: unknown
-}
-
-const INITIAL: GameState = {
-  phase: 'lobby', sessionId: null, question: null, lastPoints: null, submittedAnswer: null, correctAnswer: null,
-}
-
-const PHASE_ORDER: Record<Phase, number> = { lobby: 0, question: 1, answered: 2, reveal: 3 }
-
-interface ServerState {
-  phase: Phase | 'finished'
-  session_id?: string
-  current_question?: {
-    question_id: string
-    game_type: GameType
-    content: ActiveQuestion['content']
-    question_index: number
-    total_questions: number
-  }
-  points?: number | null
-  submitted_answer?: string | null
-  correct_answer?: unknown
-}
-
-// Merges the server's view into local state. For the same question the local phase never moves
-// backwards (a slow response must not undo a reveal that already arrived by broadcast).
-function applyServerState(prev: GameState, data: ServerState): GameState {
-  const sessionId = data.session_id ?? prev.sessionId
-  const cq = data.current_question
-  if (!cq || data.phase === 'finished') return { ...prev, sessionId }
-
-  if (prev.question?.questionId === cq.question_id && PHASE_ORDER[prev.phase] > PHASE_ORDER[data.phase as Phase]) {
-    return { ...prev, sessionId }
-  }
-  const sameQuestion = prev.question?.questionId === cq.question_id
-  return {
-    phase: data.phase as Phase,
-    sessionId,
-    question: sameQuestion ? prev.question : {
-      questionId: cq.question_id,
-      gameType: cq.game_type,
-      content: cq.content,
-      questionIndex: cq.question_index,
-      totalQuestions: cq.total_questions,
-    },
-    lastPoints: data.points ?? (sameQuestion ? prev.lastPoints : null),
-    submittedAnswer: data.submitted_answer ?? (sameQuestion ? prev.submittedAnswer : null),
-    correctAnswer: data.correct_answer ?? (sameQuestion ? prev.correctAnswer : null),
-  }
-}
+import { applyServerState, INITIAL, type GameState, type ServerState } from '@/lib/play-state'
+import { StandingsCard } from '@/components/shared/Standings'
+import type { BibleQuizContent, EmojiStoryContent, VerseScrambleContent } from '@/types/game'
 
 const subscribeNoop = () => () => {}
 
@@ -87,9 +22,10 @@ export default function PlayPage() {
   const rawSession = useSyncExternalStore(subscribeNoop, () => getPlayerSessionRaw(roomCode), () => null)
   const session = useMemo(() => parsePlayerSession(rawSession), [rawSession])
   const sessionToken = session?.sessionToken
+  const playerId = session?.playerId
 
   const [game, setGame] = useState<GameState>(INITIAL)
-  const { phase, question, lastPoints, submittedAnswer, correctAnswer, sessionId } = game
+  const { phase, question, lastPoints, submittedAnswer, correctAnswer, sessionId, standings, team } = game
 
   const sync = useCallback(() => {
     if (!sessionToken) return
@@ -117,17 +53,23 @@ export default function PlayPage() {
           content: e.payload.content,
           questionIndex: e.payload.question_index,
           totalQuestions: e.payload.total_questions,
+          elapsedMs: 0,
         },
+        team: prev.team,
+        standings: null,
         lastPoints: null,
         submittedAnswer: null,
         correctAnswer: null,
       }))
     } else if (e.event === 'question_reveal') {
-      setGame((prev) => ({ ...prev, correctAnswer: e.payload.correct_answer, phase: 'reveal' }))
+      setGame((prev) => ({ ...prev, correctAnswer: e.payload.correct_answer, standings: e.payload.standings ?? null, phase: 'reveal' }))
+    } else if (e.event === 'teams_assigned') {
+      const mine = e.payload.teams.find((t) => t.members.some((m) => m.id === playerId))
+      setGame((prev) => ({ ...prev, team: mine ? { id: mine.id, name: mine.name, color: mine.color } : prev.team }))
     } else if (e.event === 'game_finished') {
       router.push(`/results/${e.payload.session_id}`)
     }
-  }, [router])
+  }, [router, playerId])
 
   useGameChannel(roomCode, handleEvent, sync)
 
@@ -162,6 +104,12 @@ export default function PlayPage() {
             <p className="font-display text-xl font-semibold">Menunggu host...</p>
             <p className="text-mist text-sm mt-1 font-semibold">Game segera dimulai</p>
           </div>
+          {team && (
+            <div className="card px-5 py-2.5 flex items-center gap-2.5 animate-pop-in">
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: team.color }} />
+              <span className="font-bold text-sm">Kamu di {team.name}</span>
+            </div>
+          )}
           <div className="card px-5 py-2.5 flex items-center gap-2">
             <span className="tag">Room</span>
             <span className="font-display text-gold font-semibold tracking-widest text-xl">{roomCode}</span>
@@ -180,6 +128,7 @@ export default function PlayPage() {
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
+              elapsedMs={question.elapsedMs}
               onAnswered={handleAnswered}
             />
           )}
@@ -192,6 +141,7 @@ export default function PlayPage() {
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
+              elapsedMs={question.elapsedMs}
               onAnswered={handleAnswered}
             />
           )}
@@ -204,6 +154,7 @@ export default function PlayPage() {
               sessionToken={session.sessionToken}
               questionIndex={question.questionIndex}
               totalQuestions={question.totalQuestions}
+              elapsedMs={question.elapsedMs}
               onAnswered={handleAnswered}
             />
           )}
@@ -315,6 +266,10 @@ export default function PlayPage() {
 
             return null
           })()}
+
+          {phase === 'reveal' && standings && (
+            <StandingsCard standings={standings} meId={standings.mode === 'team' ? team?.id : playerId} />
+          )}
 
           <p className="text-faint text-xs font-semibold animate-pulse">Menunggu host...</p>
         </div>

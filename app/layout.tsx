@@ -16,9 +16,14 @@ const nunito = Nunito({
   weight: ['400', '600', '700', '800'],
 })
 
+const DESCRIPTION = 'Game kuis multiplayer untuk connect group'
+
 export const metadata: Metadata = {
   title: 'CG Games',
-  description: 'Game kuis multiplayer untuk connect group',
+  description: DESCRIPTION,
+  openGraph: { title: 'CG Games', description: DESCRIPTION, locale: 'id_ID', type: 'website' },
+  twitter: { card: 'summary_large_image', title: 'CG Games', description: DESCRIPTION },
+  appleWebApp: { title: 'CG Games', capable: true },
 }
 
 export const viewport: Viewport = {

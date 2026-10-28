@@ -2,6 +2,8 @@ import { createDb } from '../_shared/db.ts'
 import { rooms, players, teams, gameSessions, answers } from '../_shared/schema.ts'
 import { corsResponse, json } from '../_shared/cors.ts'
 import { broadcastToRoom } from '../_shared/broadcast.ts'
+import { computeStandings } from '../_shared/standings.ts'
+import { reportError } from '../_shared/report.ts'
 import {
   GAME_TYPES, ROOM_MODES, MAX_PLAYERS_PER_ROOM, MAX_NAME_LENGTH, MAX_QUESTION_COUNT,
   MIN_TEAMS, MAX_TEAMS, generateRoomCode, publicContent, correctAnswerOf, shuffle,
@@ -71,6 +73,31 @@ Deno.serve(async (req) => {
       }).returning()
 
       await broadcastToRoom(code, 'player_joined', { player_id: player.id, name: player.name })
+
+      return json({
+        player_id: player.id,
+        session_token: sessionToken,
+        room: { id: room.id, code: room.code, game_type: room.gameType, mode: room.mode },
+      })
+    }
+
+    // POST /rooms/:code/rejoin → get back into the room under the same name (lost phone/tab).
+    // The old session token stops working, so only one device can hold the seat at a time.
+    if (req.method === 'POST' && segments.length === 2 && segments[1] === 'rejoin') {
+      const code = segments[0]
+      const body = await req.json().catch(() => null)
+      const name = typeof body?.name === 'string' ? body.name.trim() : ''
+      if (!name) return json({ error: 'name required' }, 400)
+
+      const [room] = await db.select().from(rooms).where(eq(rooms.code, code))
+      if (!room) return json({ error: 'room not found' }, 404)
+      if (room.status === 'finished') return json({ error: 'game already finished' }, 400)
+
+      const sessionToken = generateToken()
+      const [player] = await db.update(players).set({ sessionToken })
+        .where(and(eq(players.roomId, room.id), sql`lower(${players.name}) = lower(${name})`))
+        .returning({ id: players.id })
+      if (!player) return json({ error: 'player not found' }, 404)
 
       return json({
         player_id: player.id,
@@ -197,6 +224,19 @@ Deno.serve(async (req) => {
       const totalQ = cachedQs.length
       const currentQ = session && session.status !== 'waiting' ? session.currentQuestionIndex + 1 : 0
       const questionStatus = session?.status === 'question' ? 'showing' : session?.status === 'reveal' ? 'reveal' : 'idle'
+      const currentQuestion = session ? cachedQs[session.currentQuestionIndex] : undefined
+
+      // Who has answered the live question, so a refreshed host screen is not blank.
+      const answeredIds = session && currentQuestion && questionStatus !== 'idle'
+        ? (await db.select({ id: answers.playerId }).from(answers)
+            .where(and(eq(answers.sessionId, session.id), eq(answers.questionId, currentQuestion.id)))).map((a) => a.id)
+        : []
+      const questionElapsedMs = questionStatus === 'showing' && session?.questionStartedAt
+        ? Date.now() - session.questionStartedAt.getTime()
+        : null
+      const standings = session && questionStatus === 'reveal'
+        ? await computeStandings(db, room.id, room.mode, session.id)
+        : null
 
       return json({
         phase: 'playing',
@@ -208,6 +248,9 @@ Deno.serve(async (req) => {
         questionStatus,
         currentQ,
         totalQ,
+        answeredIds,
+        questionElapsedMs,
+        standings,
       })
     }
 
@@ -224,19 +267,24 @@ Deno.serve(async (req) => {
       )
       if (!player) return json({ error: 'unauthorized' }, 403)
 
-      if (room.status === 'lobby') return json({ phase: 'lobby' })
+      // Players are told their team here (and by teams_assigned), so they can see it in the lobby.
+      const [team] = player.teamId ? await db.select().from(teams).where(eq(teams.id, player.teamId)) : []
+      const teamOut = team ? { id: team.id, name: team.name, color: team.color } : null
+      const reply = (body: Record<string, unknown>) => json({ ...body, team: teamOut })
+
+      if (room.status === 'lobby') return reply({ phase: 'lobby' })
 
       const [session] = await db.select().from(gameSessions).where(eq(gameSessions.roomId, room.id))
-      if (!session || session.status === 'waiting') return json({ phase: 'lobby', session_id: session?.id })
+      if (!session || session.status === 'waiting') return reply({ phase: 'lobby', session_id: session?.id })
 
       if (session.status === 'finished' || room.status === 'finished') {
-        return json({ phase: 'finished', session_id: session.id })
+        return reply({ phase: 'finished', session_id: session.id })
       }
 
       type CachedQ = { id: string; gameType: string; content: unknown }
       const cachedQs = (session.questionIds as CachedQ[] | null) ?? []
       const q = cachedQs[session.currentQuestionIndex]
-      if (!q) return json({ phase: 'lobby' })
+      if (!q) return reply({ phase: 'lobby' })
 
       const [existing] = await db.select().from(answers).where(
         and(eq(answers.sessionId, session.id), eq(answers.questionId, q.id), eq(answers.playerId, player.id))
@@ -245,7 +293,7 @@ Deno.serve(async (req) => {
       const phase = session.status === 'reveal' ? 'reveal' : existing ? 'answered' : 'question'
       const gameType = q.gameType as GameType
 
-      return json({
+      return reply({
         phase,
         session_id: session.id,
         current_question: {
@@ -258,12 +306,16 @@ Deno.serve(async (req) => {
         points: existing?.points ?? null,
         submitted_answer: existing?.submittedAnswer ?? null,
         correct_answer: phase === 'reveal' ? correctAnswerOf(gameType, q.content) : null,
+        // Lets a refreshed phone resume the countdown instead of starting it over.
+        elapsed_ms: phase !== 'reveal' && session.questionStartedAt ? Date.now() - session.questionStartedAt.getTime() : null,
+        standings: phase === 'reveal' ? await computeStandings(db, room.id, room.mode, session.id) : null,
       })
     }
 
     return json({ error: 'not found' }, 404)
   } catch (e) {
     console.error(e)
+    await reportError('edge/rooms', e, req)
     return json({ error: 'internal server error' }, 500)
   }
 })

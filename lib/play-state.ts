@@ -1,0 +1,81 @@
+// Player-side game state and how the server's view of the room is merged into it.
+import type { BibleQuizContent, EmojiStoryContent, GameType, Standings, TeamInfo, VerseScrambleContent } from '@/types/game'
+
+export type Phase = 'lobby' | 'question' | 'answered' | 'reveal'
+
+export interface ActiveQuestion {
+  questionId: string
+  gameType: GameType
+  content: BibleQuizContent | VerseScrambleContent | EmojiStoryContent
+  questionIndex: number
+  totalQuestions: number
+  /** Time already used when this question was loaded (refresh mid-question). */
+  elapsedMs: number
+}
+
+export interface GameState {
+  phase: Phase
+  sessionId: string | null
+  question: ActiveQuestion | null
+  lastPoints: number | null
+  submittedAnswer: string | null
+  correctAnswer: unknown
+  standings: Standings | null
+  team: TeamInfo | null
+}
+
+export const INITIAL: GameState = {
+  phase: 'lobby', sessionId: null, question: null, lastPoints: null, submittedAnswer: null, correctAnswer: null,
+  standings: null, team: null,
+}
+
+const PHASE_ORDER: Record<Phase, number> = { lobby: 0, question: 1, answered: 2, reveal: 3 }
+
+export interface ServerState {
+  phase: Phase | 'finished'
+  session_id?: string
+  current_question?: {
+    question_id: string
+    game_type: GameType
+    content: ActiveQuestion['content']
+    question_index: number
+    total_questions: number
+  }
+  points?: number | null
+  submitted_answer?: string | null
+  correct_answer?: unknown
+  elapsed_ms?: number | null
+  standings?: Standings | null
+  team?: TeamInfo | null
+}
+
+// Merges the server's view into local state. For the same question the local phase never moves
+// backwards (a slow response must not undo a reveal that already arrived by broadcast).
+export function applyServerState(prev: GameState, data: ServerState): GameState {
+  const sessionId = data.session_id ?? prev.sessionId
+  const cq = data.current_question
+  const team = data.team ?? prev.team
+  if (!cq || data.phase === 'finished') return { ...prev, sessionId, team }
+
+  if (prev.question?.questionId === cq.question_id && PHASE_ORDER[prev.phase] > PHASE_ORDER[data.phase as Phase]) {
+    return { ...prev, sessionId, team, standings: data.standings ?? prev.standings }
+  }
+  const sameQuestion = prev.question?.questionId === cq.question_id
+  return {
+    phase: data.phase as Phase,
+    sessionId,
+    question: sameQuestion ? prev.question : {
+      questionId: cq.question_id,
+      gameType: cq.game_type,
+      content: cq.content,
+      questionIndex: cq.question_index,
+      totalQuestions: cq.total_questions,
+      elapsedMs: data.elapsed_ms ?? 0,
+    },
+    team,
+    standings: data.standings ?? (sameQuestion ? prev.standings : null),
+    lastPoints: data.points ?? (sameQuestion ? prev.lastPoints : null),
+    submittedAnswer: data.submitted_answer ?? (sameQuestion ? prev.submittedAnswer : null),
+    correctAnswer: data.correct_answer ?? (sameQuestion ? prev.correctAnswer : null),
+  }
+}
