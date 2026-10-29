@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import {
-  DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
+  DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -33,7 +33,7 @@ function PlacedWord({ id, label, disabled, onRemove }: { id: number; label: stri
       {...listeners}
       onClick={onRemove}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`bg-accent text-night px-3 py-1.5 rounded-lg font-bold text-sm cursor-grab shadow-[0_2px_0_#b36b00] ${isDragging ? 'z-10 opacity-80 scale-105' : 'active:scale-95'}`}
+      className={`bg-accent text-night px-3 py-1.5 rounded-lg font-bold text-sm cursor-grab touch-none select-none shadow-[0_2px_0_#b36b00] ${isDragging ? 'z-10 opacity-80 scale-105' : 'active:scale-95'}`}
     >
       {label}
     </button>
@@ -47,11 +47,8 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
   const [sendError, setSendError] = useState(false)
   const startRef = useRef(0)
   const draggedRef = useRef(false)
-  // A short press-and-hold on touch (or a small move with a mouse) starts a drag; a plain tap still removes.
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
-  )
+  // Moving a word a few pixels starts a drag (mouse and touch alike); a plain tap still removes it.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   useEffect(() => {
     startRef.current = now() - elapsedMs
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,7 +119,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
 
       <div className="min-h-24 bg-ink border-2 border-dashed border-line rounded-2xl p-3 flex flex-wrap gap-2">
         {placed.length === 0 ? (
-          <p className="text-faint text-sm font-semibold self-center mx-auto">Ketuk kata untuk menyusun ayat, tahan dan geser untuk menukar urutan...</p>
+          <p className="text-faint text-sm font-semibold self-center mx-auto">Ketuk kata untuk menyusun ayat, geser untuk menukar urutan...</p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={placed} strategy={rectSortingStrategy} disabled={answered}>
