@@ -2,6 +2,9 @@ import { reportClientError } from './report'
 
 const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1`
 
+/** A request that has not answered by then is abandoned, so the UI shows an error instead of waiting forever. */
+const REQUEST_TIMEOUT_MS = 12_000
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 interface CallOptions extends RequestInit {
@@ -13,10 +16,11 @@ async function call(path: string, { retries = 0, ...options }: CallOptions = {})
   for (let attempt = 0; ; attempt++) {
     let res: Response
     try {
-      res = await fetch(`${BASE}${path}`, options)
+      res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), ...options })
     } catch (e) {
       if (attempt < retries) { await sleep(400 * (attempt + 1)); continue }
       reportClientError(`api ${path}`, e)
+      if (e instanceof DOMException && e.name === 'TimeoutError') throw new Error('Koneksi terlalu lambat. Coba lagi.')
       throw e
     }
     if (res.status >= 500 && attempt < retries) { await sleep(400 * (attempt + 1)); continue }
@@ -38,6 +42,8 @@ export interface MemoryConfig {
 
 export function createRoom(gameType: string, mode: string, questionCount: number, memory?: MemoryConfig) {
   return call('/rooms', {
+    // A repeat only leaves an unused room behind, which the cleanup job removes.
+    retries: 1,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

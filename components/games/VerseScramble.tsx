@@ -112,7 +112,7 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-2">
+    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full flex-1 pt-2 select-none [-webkit-touch-callout:none]">
       <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-night/90 backdrop-blur flex justify-between items-center">
         <div>
           <p className="tag">Soal {questionIndex + 1} / {totalQuestions}</p>
