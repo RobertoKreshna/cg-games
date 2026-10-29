@@ -43,6 +43,22 @@ export function calcBibleQuizPoints(timeMs: number, timerMs = TIMER_MS.bible_qui
   return Math.max(0, Math.round(1000 - (timeMs / timerMs) * 1000))
 }
 
+/**
+ * Words kept in the right relative order: the longest common subsequence of two word lists.
+ * One misplaced word costs one word, instead of shifting every word after it out of place.
+ */
+export function inOrderWordCount(submitted: readonly string[], correct: readonly string[]): number {
+  let prev = new Array<number>(correct.length + 1).fill(0)
+  for (const word of submitted) {
+    const row = [0]
+    for (let j = 0; j < correct.length; j++) {
+      row.push(word === correct[j] ? prev[j] + 1 : Math.max(prev[j + 1], row[j]))
+    }
+    prev = row
+  }
+  return prev[correct.length]
+}
+
 export function calcVerseScramblePoints(
   correctWords: number,
   totalWords: number,
@@ -135,7 +151,9 @@ export function scoreAnswer(
     const correctOrder = c.correct_order as number[]
     const words = c.words as string[]
     if (parsed.length > words.length || parsed.some((i) => i < 0 || i >= words.length)) return bad
-    const correctWords = correctOrder.filter((v, i) => v === parsed[i]).length
+    // Compare the words themselves, so a repeated word ("an apple ... an eagle") may go in either slot.
+    const correctText = correctOrder.map((i) => words[i])
+    const correctWords = inOrderWordCount(parsed.map((i) => words[i]), correctText)
     return {
       ok: true,
       isCorrect: correctWords === correctOrder.length,

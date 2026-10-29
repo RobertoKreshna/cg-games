@@ -178,10 +178,15 @@ describe('scoreMemory', () => {
     expect(scoreMemory({ ...full, matched: 0, correct: 0 }, 0, 120_000)).toBe(0)
   })
   it('matches the worked example: 60s of 120s, 4 mistakes, 8/10 right', () => {
-    expect(scoreMemory({ matched: 10, correct: 8, mistakes: 4, pairs: 10 }, 60_000, 120_000)).toBe(595)
+    expect(scoreMemory({ matched: 10, correct: 8, mistakes: 4, pairs: 10 }, 60_000, 120_000)).toBe(660)
+  })
+  it('caps the mistake penalty at half the base, so a late finish still scores', () => {
+    expect(scoreMemory({ matched: 9, correct: 9, mistakes: 20, pairs: 10 }, 120_000, 120_000)).toBe(400)
+    expect(scoreMemory({ matched: 9, correct: 9, mistakes: 100, pairs: 10 }, 120_000, 120_000)).toBe(225)
+    expect(scoreMemory({ matched: 1, correct: 0, mistakes: 50, pairs: 10 }, 0, 120_000)).toBe(25)
   })
   it('never goes below zero and clamps time to the limit', () => {
-    expect(scoreMemory({ matched: 1, correct: 0, mistakes: 50, pairs: 10 }, 0, 120_000)).toBe(0)
+    expect(scoreMemory({ matched: 0, correct: 0, mistakes: 50, pairs: 10 }, 0, 120_000)).toBe(0)
     expect(scoreMemory(full, 999_999, 120_000)).toBe(500)
   })
   it('computes the minimum plausible time', () => {

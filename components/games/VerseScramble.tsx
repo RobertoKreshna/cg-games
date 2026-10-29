@@ -1,5 +1,10 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import {
+  DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Timer } from '@/components/shared/Timer'
 import { submitAnswer } from '@/lib/api'
 import { now } from '@/lib/clock'
@@ -18,12 +23,35 @@ interface Props {
   onAnswered: (points: number, submittedAnswer: string) => void
 }
 
+/** A placed word: drag to reorder, tap to send it back. */
+function PlacedWord({ id, label, disabled, onRemove }: { id: number; label: string; disabled: boolean; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
+  return (
+    <button
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      onClick={onRemove}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`bg-accent text-night px-3 py-1.5 rounded-lg font-bold text-sm cursor-grab shadow-[0_2px_0_#b36b00] ${isDragging ? 'z-10 opacity-80 scale-105' : 'active:scale-95'}`}
+    >
+      {label}
+    </button>
+  )
+}
+
 export function VerseScramble({ questionId, content, sessionId, sessionToken, questionIndex, totalQuestions, elapsedMs = 0, onAnswered }: Props) {
   const [placed, setPlaced] = useState<number[]>([])
   const [available, setAvailable] = useState<number[]>(() => shuffle(content.words.map((_, i) => i)))
   const [answered, setAnswered] = useState(false)
   const [sendError, setSendError] = useState(false)
   const startRef = useRef(0)
+  const draggedRef = useRef(false)
+  // A short press-and-hold on touch (or a small move with a mouse) starts a drag; a plain tap still removes.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+  )
   useEffect(() => {
     startRef.current = now() - elapsedMs
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -35,8 +63,16 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
     setPlaced((p) => [...p, wordIndex])
   }
 
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    // The click that ends a drag must not also remove the word.
+    draggedRef.current = true
+    setTimeout(() => { draggedRef.current = false }, 0)
+    if (!over || active.id === over.id) return
+    setPlaced((p) => arrayMove(p, p.indexOf(Number(active.id)), p.indexOf(Number(over.id))))
+  }
+
   function remove(pos: number) {
-    if (answered) return
+    if (answered || draggedRef.current) return
     const wordIndex = placed[pos]
     setPlaced((p) => p.filter((_, i) => i !== pos))
     setAvailable((p) => [...p, wordIndex])
@@ -86,17 +122,21 @@ export function VerseScramble({ questionId, content, sessionId, sessionToken, qu
 
       <div className="min-h-24 bg-ink border-2 border-dashed border-line rounded-2xl p-3 flex flex-wrap gap-2">
         {placed.length === 0 ? (
-          <p className="text-faint text-sm font-semibold self-center mx-auto">Ketuk kata untuk menyusun ayat...</p>
+          <p className="text-faint text-sm font-semibold self-center mx-auto">Ketuk kata untuk menyusun ayat, tahan dan geser untuk menukar urutan...</p>
         ) : (
-          placed.map((wordIndex, pos) => (
-            <button
-              key={pos}
-              onClick={() => remove(pos)}
-              className="bg-accent text-night px-3 py-1.5 rounded-lg font-bold text-sm active:scale-95 transition-transform cursor-pointer shadow-[0_2px_0_#b36b00]"
-            >
-              {content.words[wordIndex]}
-            </button>
-          ))
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={placed} strategy={rectSortingStrategy} disabled={answered}>
+              {placed.map((wordIndex, pos) => (
+                <PlacedWord
+                  key={wordIndex}
+                  id={wordIndex}
+                  label={content.words[wordIndex]}
+                  disabled={answered}
+                  onRemove={() => remove(pos)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 

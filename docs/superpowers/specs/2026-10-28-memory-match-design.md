@@ -124,16 +124,17 @@ dua flip dalam satu langkah pada kartu yang sama, membuka kartu yang sudah cocok
 
 ```
 dasar   = 500 × (pasangan ditemukan / total) + 500 × (jawaban benar / total)
+denda   = min(0,5 × dasar, 5 × salahTebakKartu)  // paling banyak setengah dasar
 faktor  = 1 − 0,5 × (waktu / timerMs)          // 1,0 sampai 0,5
-poin    = max(0, round(dasar × faktor) − 20 × salahTebakKartu)
+poin    = max(0, round((dasar − denda) × faktor))
 isCorrect = semua pasangan ditemukan
 ```
 
-Contoh: 10 pasang, 70 dtk dari 120, 4 salah tebak, 8 benar → dasar 900, faktor ≈ 0,71, poin ≈ 557.
+Contoh: 10 pasang, 70 dtk dari 120, 4 salah tebak, 8 benar → dasar 900, denda 20, faktor ≈ 0,71, poin ≈ 623.
 
 `waktu` = `effectiveTimeMs` yang sudah ada (waktu server menang atas klaim klien), dengan lantai tambahan
 `max(waktu, langkah × 500 + dijawab × 1000)` agar hasil yang mustahil cepat tidak lolos. Jawaban setelah tenggat + masa tenggang
-tetap bernilai 0, sama seperti game lain. Konstanta (`10000`, `20000`, `500`, `20`, `500`, `1000`) ada di `_shared/game.ts` / `_shared/memory.ts`.
+tetap bernilai 0, sama seperti game lain. Konstanta (`10000`, `20000`, `500`, `5`, `0,5`, `500`, `1000`) ada di `_shared/game.ts` / `_shared/memory.ts`.
 
 ## Keamanan dan kecurangan
 

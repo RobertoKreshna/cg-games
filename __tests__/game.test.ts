@@ -37,10 +37,23 @@ describe('scoreAnswer', () => {
     expect(scoreAnswer('bible_quiz', quiz, '-1', 15000)).toMatchObject({ isCorrect: false, points: 0 })
   })
 
-  it('scores verse scramble by position', () => {
+  it('scores verse scramble by words kept in order', () => {
     expect(scoreAnswer('verse_scramble', verse, '[2,0,1]', 0)).toEqual({ ok: true, isCorrect: true, points: 1000 })
-    expect(scoreAnswer('verse_scramble', verse, '[2,1,0]', 0)).toMatchObject({ isCorrect: false, points: 333 })
+    expect(scoreAnswer('verse_scramble', verse, '[2,1,0]', 0)).toMatchObject({ isCorrect: false, points: 667 })
     expect(scoreAnswer('verse_scramble', verse, '[]', 0)).toMatchObject({ points: 0 })
+  })
+
+  it('does not let one misplaced word shift the rest, and treats repeated words alike', () => {
+    const sentence = {
+      words: ['an', 'apple', 'is', 'being', 'eaten', 'by', 'an', 'eagle'],
+      correct_order: [0, 1, 2, 3, 4, 5, 6, 7],
+    }
+    // "apple" moved to the front: 7 of 8 words are still in order.
+    expect(scoreAnswer('verse_scramble', sentence, '[1,0,2,3,4,5,6,7]', 0)).toMatchObject({ isCorrect: false, points: 875 })
+    // The two "an" swapped: the sentence reads the same, so it is fully correct.
+    expect(scoreAnswer('verse_scramble', sentence, '[6,1,2,3,4,5,0,7]', 0)).toEqual({ ok: true, isCorrect: true, points: 1000 })
+    // A word dropped at the start used to push everything one slot off.
+    expect(scoreAnswer('verse_scramble', sentence, '[1,2,3,4,5,6,7]', 0)).toMatchObject({ points: 875 })
   })
 
   it('rejects malformed verse answers', () => {

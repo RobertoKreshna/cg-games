@@ -9,7 +9,9 @@ export const MEMORY_DEFAULT_DELAY_MS = 1000
 /** Time budget: this much per pair (matching + answering) plus a fixed amount. */
 export const MEMORY_MS_PER_PAIR = 10_000
 export const MEMORY_BASE_MS = 20_000
-export const MEMORY_MISTAKE_PENALTY = 20
+export const MEMORY_MISTAKE_PENALTY = 5
+/** Mistakes can take away at most this share of the base, so finding pairs always earns something. */
+export const MEMORY_MAX_PENALTY_SHARE = 0.5
 /** No human can finish faster than this per move / per answered quiz; shorter claimed times are raised. */
 export const MEMORY_MIN_MS_PER_MOVE = 500
 export const MEMORY_MIN_MS_PER_ANSWER = 1000
@@ -154,15 +156,19 @@ export function replayMemory(board: MemoryBoard, result: unknown): MemoryReplay 
   }
 }
 
-/** Half the base comes from finding pairs, half from right answers; speed scales it from 1.0 to 0.5. */
+/**
+ * Half the base comes from finding pairs, half from right answers. Mistakes cost a few points each
+ * (at most half the base); then speed scales what is left from 1.0 to 0.5.
+ */
 export function scoreMemory(
   r: { matched: number; correct: number; mistakes: number; pairs: number },
   timeMs: number,
   timerMs: number,
 ): number {
   const base = 500 * (r.matched / r.pairs) + 500 * (r.correct / r.pairs)
+  const penalty = Math.min(base * MEMORY_MAX_PENALTY_SHARE, MEMORY_MISTAKE_PENALTY * r.mistakes)
   const used = Math.min(1, Math.max(0, timeMs / timerMs))
-  return Math.max(0, Math.round(base * (1 - 0.5 * used)) - MEMORY_MISTAKE_PENALTY * r.mistakes)
+  return Math.max(0, Math.round((base - penalty) * (1 - 0.5 * used)))
 }
 
 export function minMemoryTimeMs(moves: number, answered: number): number {
